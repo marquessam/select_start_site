@@ -311,40 +311,38 @@
                     return;
                 }
 
-                const challenge = this.config.currentChallenge;
+                // Get challenge data from API
+                const challenge = data.challenge || {};
+                const totalAchievements = challenge.totalAchievements || this.config.currentChallenge.totalAchievements;
                 
-                // Process the real leaderboard data
-                const totalAchievements = challenge.totalAchievements;
+                // Get formatted game info
+                const gameTitle = challenge.gameTitle || this.config.currentChallenge.game;
+                const endDate = challenge.endDate || this.config.currentChallenge.endDate;
+                const timeRemaining = challenge.timeRemaining || this.config.currentChallenge.timeRemaining;
                 
-                // Transform API data to include percentages
-                const playerData = data.leaderboard.map(player => {
-                    const completed = player.totalPoints || 0;
-                    const percentage = ((completed / totalAchievements) * 100).toFixed(2);
-                    
-                    return {
-                        username: player.username,
-                        completion: `${completed}/${totalAchievements} (${percentage}%)`,
-                        percentage: parseFloat(percentage)
-                    };
-                });
+                // Get game icon URL if available
+                const gameIconUrl = challenge.gameIconUrl || null;
                 
-                // Filter out players with 0% progress
-                const filteredPlayerData = playerData.filter(player => player.percentage > 0);
+                // Filter out users with 0% progress (already done in API but double check)
+                const filteredPlayerData = data.leaderboard.filter(player => player.totalPoints > 0);
+                
+                // Sort by points (should already be sorted from API, but ensure it)
+                filteredPlayerData.sort((a, b) => b.totalPoints - a.totalPoints);
 
                 const challenge = this.config.currentChallenge;
                 
                 let headerHTML = `
                     <div class="leaderboard-header">
-                        <img src="/api/placeholder/60/60" alt="${data.challenge?.monthlyGame || 'Game'}" class="game-icon" />
+                        <img src="${gameIconUrl || '/api/placeholder/60/60'}" alt="${gameTitle}" class="game-icon" />
                         <div class="header-content">
-                            <h2 class="challenge-title">${data.challenge?.monthYear || 'Current'} Challenge Leaderboard</h2>
-                            <div class="game-info">Game: ${challenge.game}</div>
-                            <div class="challenge-details">Total Achievements: ${challenge.totalAchievements}</div>
-                            <div class="challenge-details">Challenge Ends: ${challenge.endDate}</div>
-                            <div class="time-remaining">Time Remaining: ${challenge.timeRemaining}</div>
+                            <h2 class="challenge-title">${challenge.monthYear || 'Current'} Challenge Leaderboard</h2>
+                            <div class="game-info">Game: ${gameTitle}</div>
+                            <div class="challenge-details">Total Achievements: ${totalAchievements}</div>
+                            <div class="challenge-details">Challenge Ends: ${endDate}</div>
+                            <div class="time-remaining">Time Remaining: ${timeRemaining}</div>
                             
                             <div class="achievement-types">
-                                ${challenge.achievements.map(ach => 
+                                ${this.config.currentChallenge.achievements.map(ach => 
                                     `<div class="achievement-type">
                                         <span class="achievement-icon">${ach.icon}</span>
                                         ${ach.type} (${ach.points}pts)
@@ -353,7 +351,7 @@
                             </div>
                             
                             <div class="note">
-                                Note: Only achievements earned during April count toward challenge status.
+                                Note: Only achievements earned during ${challenge.monthYear?.split(' ')[0] || 'the current month'} count toward challenge status.
                             </div>
                         </div>
                     </div>
@@ -367,6 +365,12 @@
                             const hasRank = rank <= 9;
                             const isTrophy = rank <= 3;
                             
+                            // Format completion percentage
+                            const achieved = player.achieved || player.totalPoints || 0;
+                            const percentage = player.percentage || 
+                                ((achieved / totalAchievements) * 100).toFixed(2);
+                            const completion = `${achieved}/${totalAchievements} (${percentage}%)`;
+                            
                             return `
                                 <li class="player-item" data-username="${player.username}">
                                     <a href="https://retroachievements.org/user/${player.username}" class="player-link" target="_blank"></a>
@@ -374,7 +378,7 @@
                                     ${hasRank ? `<span class="rank">#${rank}</span>` : ''}
                                     ${isTrophy ? '<span class="trophy">🏆</span>' : ''}
                                     <span class="username">${player.username}</span>
-                                    <span class="completion">${player.completion}</span>
+                                    <span class="completion">${completion}</span>
                                 </li>
                             `;
                         }).join('')}
