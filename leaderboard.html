@@ -15,18 +15,16 @@
         .leaderboard-container {
             max-width: 100%;
             margin: 0 auto;
-            background-color: #1a1533;
+            background-color: #1e1e1e;
             border-radius: 8px;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
             color: #ffffff;
             overflow: hidden;
-            border-left: 4px solid #7b47c9;
+            border-left: 4px solid #FFD700;
         }
         
         .leaderboard-header {
-            background-color: #27224a;
             padding: 15px;
-            border-bottom: 1px solid #3d3175;
+            border-bottom: 1px solid #383838;
             display: flex;
             align-items: flex-start;
         }
@@ -45,7 +43,7 @@
         
         .challenge-title {
             margin: 0;
-            font-size: 1.3rem;
+            font-size: 1.2rem;
             font-weight: bold;
             color: white;
         }
@@ -53,19 +51,18 @@
         .game-info {
             margin-top: 5px;
             font-size: 0.9rem;
-            color: #a367ff;
         }
         
         .challenge-details {
             margin-top: 10px;
             font-size: 0.85rem;
-            color: #cccccc;
+            color: #bbbbbb;
         }
         
         .time-remaining {
             margin-top: 5px;
             font-size: 0.85rem;
-            color: #cccccc;
+            color: #bbbbbb;
         }
         
         .achievement-types {
@@ -89,16 +86,15 @@
             margin-top: 15px;
             font-style: italic;
             font-size: 0.85rem;
-            color: #a367ff;
-            border-top: 1px solid #3d3175;
+            color: #bbbbbb;
+            border-top: 1px solid #383838;
             padding-top: 10px;
         }
         
         .rankings-title {
-            padding: 15px 15px 10px 15px;
+            margin: 15px 0 10px 15px;
             font-size: 0.9rem;
-            color: #a367ff;
-            font-weight: bold;
+            color: #bbbbbb;
         }
         
         .player-list {
@@ -109,14 +105,14 @@
         
         .player-item {
             padding: 8px 15px;
-            border-bottom: 1px solid #3d3175;
+            border-bottom: 1px solid #383838;
             display: flex;
             align-items: center;
             position: relative;
         }
         
         .player-item:hover {
-            background-color: #2a2a5a;
+            background-color: #2a2a2a;
             cursor: pointer;
         }
         
@@ -132,7 +128,7 @@
         
         .rank {
             margin-right: 5px;
-            color: #a367ff;
+            color: #bbbbbb;
             width: 30px;
         }
         
@@ -151,7 +147,7 @@
         }
         
         .completion {
-            color: #cccccc;
+            color: #bbbbbb;
             text-align: right;
         }
         
@@ -177,16 +173,16 @@
         .loading {
             padding: 20px;
             text-align: center;
-            color: #a367ff;
+            color: #bbbbbb;
         }
         
         .loading-spinner {
             display: inline-block;
             width: 20px;
             height: 20px;
-            border: 3px solid rgba(163, 103, 255, 0.3);
+            border: 3px solid rgba(255, 255, 255, 0.2);
             border-radius: 50%;
-            border-top-color: #a367ff;
+            border-top-color: white;
             animation: spin 1s ease-in-out infinite;
             margin-right: 10px;
         }
@@ -204,27 +200,40 @@
         .last-updated {
             padding: 8px 15px;
             font-size: 0.8rem;
-            color: #7a7a8c;
+            color: #bbbbbb;
             text-align: right;
-            border-top: 1px solid #3d3175;
+            border-top: 1px solid #383838;
         }
         
         .tabs {
             display: flex;
-            background-color: #27224a;
+            background-color: #2a2a2a;
         }
         
         .tab {
             padding: 10px 20px;
             cursor: pointer;
             opacity: 0.7;
-            color: #ffffff;
         }
         
         .tab.active {
             opacity: 1;
-            border-bottom: 2px solid #a367ff;
-            font-weight: bold;
+            border-bottom: 2px solid #ffffff;
+        }
+        
+        /* Debug panel for testing */
+        .debug-panel {
+            margin-top: 20px;
+            padding: 10px;
+            background-color: #333;
+            border: 1px solid #555;
+            font-family: monospace;
+            font-size: 12px;
+            display: none;
+        }
+        
+        .debug-panel.visible {
+            display: block;
         }
     </style>
 </head>
@@ -232,6 +241,9 @@
     <div id="discord-leaderboard" class="leaderboard-container">
         <!-- Dynamically filled -->
     </div>
+    
+    <!-- Debug panel for troubleshooting -->
+    <div id="debug-panel" class="debug-panel"></div>
 
     <script>
         // Configuration
@@ -239,13 +251,15 @@
             apiUrl: 'https://select-start-api-production.up.railway.app/api',
             apiKey: '123456789',
             refreshInterval: 300000, // 5 minutes
-            // Game details fallback if API doesn't provide them
+            // Debug mode - set to true to show API data
+            debug: false,
+            // Game details that aren't yet in the API
             currentChallenge: {
                 game: "Ape Escape",
                 totalAchievements: 68,
                 endDate: "April 30th, 2025 at 11:59 PM",
                 timeRemaining: "21 days and 14 hours",
-                gameImageUrl: "https://media.retroachievements.org/Images/061127.png",
+                gameIconUrl: "https://media.retroachievements.org/Images/061127.png",
                 achievements: [
                     { type: "Mastery", points: 3, icon: "✨" },
                     { type: "Beaten", points: 3, icon: "⭐" },
@@ -261,6 +275,13 @@
                 this.leaderboardData = null;
                 this.selectedPlayer = null;
                 this.currentTab = 'monthly'; // Default tab
+                this.debugPanel = document.getElementById('debug-panel');
+                
+                // Show debug panel if debug mode is enabled
+                if (this.config.debug) {
+                    this.debugPanel.classList.add('visible');
+                }
+                
                 this.init();
             }
 
@@ -312,6 +333,12 @@
 
                     const data = await response.json();
                     console.log("Received data:", data);
+                    
+                    // Show data in debug panel
+                    if (this.config.debug) {
+                        this.debugPanel.innerHTML = `<pre>${JSON.stringify(data, null, 2)}</pre>`;
+                    }
+                    
                     this.leaderboardData = data;
                     return data;
                 } catch (error) {
@@ -333,17 +360,15 @@
                     return;
                 }
 
-                // Get challenge data from API or fallback to config
+                // Get challenge data from API
                 const challenge = data.challenge || {};
-                const totalAchievements = challenge.totalAchievements || this.config.currentChallenge.totalAchievements;
                 
-                // Get formatted game info
-                const gameTitle = challenge.gameTitle || this.config.currentChallenge.game;
-                const endDate = challenge.endDate || this.config.currentChallenge.endDate;
-                const timeRemaining = challenge.timeRemaining || this.config.currentChallenge.timeRemaining;
-                
-                // Get game icon URL if available, or use the hardcoded fallback
-                const gameIconUrl = challenge.gameIconUrl || this.config.currentChallenge.gameImageUrl || null;
+                // Hardcode game details for now to ensure they appear correctly
+                const gameTitle = "Ape Escape";
+                const totalAchievements = 68;
+                const endDate = "April 30th, 2025 at 11:59 PM";
+                const timeRemaining = "21 days and 14 hours";
+                const gameIconUrl = "https://media.retroachievements.org/Images/061127.png";
                 
                 // Filter out users with 0% progress (already done in API but double check)
                 const filteredPlayerData = data.leaderboard.filter(player => 
@@ -367,9 +392,9 @@
                 if (this.currentTab === 'monthly') {
                     headerHTML = `
                         <div class="leaderboard-header">
-                            <img src="${gameIconUrl || '/api/placeholder/60/60'}" alt="${gameTitle}" class="game-icon" />
+                            <img src="${gameIconUrl}" alt="${gameTitle}" class="game-icon" />
                             <div class="header-content">
-                                <h2 class="challenge-title">${challenge.monthYear || 'April 2025'} Challenge Leaderboard</h2>
+                                <h2 class="challenge-title">April 2025 Challenge Leaderboard</h2>
                                 <div class="game-info">Game: ${gameTitle}</div>
                                 <div class="challenge-details">Total Achievements: ${totalAchievements}</div>
                                 <div class="challenge-details">Challenge Ends: ${endDate}</div>
@@ -385,7 +410,7 @@
                                 </div>
                                 
                                 <div class="note">
-                                    Note: Only achievements earned during ${challenge.monthYear?.split(' ')[0] || 'April'} count toward challenge status.
+                                    Note: Only achievements earned during April count toward challenge status.
                                 </div>
                             </div>
                         </div>
@@ -396,18 +421,20 @@
                         <ul class="player-list">
                             ${filteredPlayerData.map((player, index) => {
                                 const rank = index + 1;
-                                const hasRank = rank <= 12;
+                                const hasRank = true; // Always show rank
                                 const isTrophy = rank <= 3;
                                 
                                 // Format completion percentage
-                                const achieved = player.achieved || 0;
+                                const achieved = player.achieved || player.achievements || 0;
                                 const percentage = player.percentage || 0;
-                                const completion = `${achieved}/${totalAchievements} (${percentage}%)`;
+                                // Ensure we display a proper percentage format matching Discord bot
+                                const formattedPercentage = (Math.round(percentage * 100) / 100).toFixed(2);
+                                const completion = `${achieved}/${totalAchievements} (${formattedPercentage}%)`;
                                 
-                                // Determine trophy icon if applicable
-                                let trophySymbol = '';
+                                // Determine award emoji based on ranking
+                                let awardEmoji = '';
                                 if (isTrophy) {
-                                    trophySymbol = '<span class="trophy">🏆</span>';
+                                    awardEmoji = '<span class="trophy">🏆</span>';
                                 }
                                 
                                 return `
@@ -415,7 +442,7 @@
                                         <a href="https://retroachievements.org/user/${player.username}" class="player-link" target="_blank"></a>
                                         <div class="player-selection-indicator"></div>
                                         ${hasRank ? `<span class="rank">#${rank}</span>` : ''}
-                                        ${trophySymbol}
+                                        ${awardEmoji}
                                         <span class="username">${player.username}</span>
                                         <span class="completion">${completion}</span>
                                     </li>
@@ -441,13 +468,13 @@
                         <ul class="player-list">
                             ${data.leaderboard.map((player, index) => {
                                 const rank = index + 1;
-                                const hasRank = rank <= 12;
+                                const hasRank = true; // Always show rank
                                 const isTrophy = rank <= 3;
                                 
-                                // Determine trophy icon if applicable
-                                let trophySymbol = '';
+                                // Determine award emoji based on ranking
+                                let awardEmoji = '';
                                 if (isTrophy) {
-                                    trophySymbol = '<span class="trophy">🏆</span>';
+                                    awardEmoji = '<span class="trophy">🏆</span>';
                                 }
                                 
                                 return `
@@ -455,7 +482,7 @@
                                         <a href="https://retroachievements.org/user/${player.username}" class="player-link" target="_blank"></a>
                                         <div class="player-selection-indicator"></div>
                                         ${hasRank ? `<span class="rank">#${rank}</span>` : ''}
-                                        ${trophySymbol}
+                                        ${awardEmoji}
                                         <span class="username">${player.username}</span>
                                         <span class="completion">${player.yearlyPoints} points</span>
                                     </li>
