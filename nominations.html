@@ -15,16 +15,16 @@
         .nominations-container {
             max-width: 100%;
             margin: 0 auto;
-            background-color: #1a1533; /* Dark purple background */
+            background-color: #1a1533;
             border-radius: 8px;
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
             color: #ffffff;
             overflow: hidden;
-            border-left: 4px solid #7b47c9; /* Purple accent border */
+            border-left: 4px solid #7b47c9;
         }
         
         .nominations-header {
-            background-color: #27224a; /* Slightly lighter purple */
+            background-color: #27224a;
             padding: 15px;
             border-bottom: 1px solid #3d3175;
         }
@@ -58,6 +58,15 @@
             background-color: #27224a;
             color: #a367ff;
             font-weight: bold;
+            cursor: pointer;
+        }
+
+        .nominations-table th.asc::after {
+            content: " ▲";
+        }
+
+        .nominations-table th.desc::after {
+            content: " ▼";
         }
         
         .count-cell {
@@ -80,7 +89,6 @@
             font-size: 0.9em;
         }
         
-        /* Loading state */
         .loading {
             padding: 20px;
             text-align: center;
@@ -102,7 +110,6 @@
             to { transform: rotate(360deg); }
         }
         
-        /* Error state */
         .error {
             padding: 20px;
             text-align: center;
@@ -124,16 +131,13 @@
     </style>
 </head>
 <body>
-    <div id="ra-nominations" class="nominations-container">
-        <!-- Content will be dynamically generated -->
-    </div>
+    <div id="ra-nominations" class="nominations-container"></div>
 
     <script>
-        // Configuration
         const CONFIG = {
             apiUrl: 'https://select-start-api-production.up.railway.app/api',
             apiKey: '123456789',
-            refreshInterval: 300000 // 5 minutes
+            refreshInterval: 300000
         };
 
         class Nominations {
@@ -187,26 +191,18 @@
             }
 
             async fetchData() {
-                try {
-                    const response = await fetch(`${this.config.apiUrl}/nominations`, {
-                        method: 'GET',
-                        headers: {
-                            'x-api-key': this.config.apiKey
-                        }
-                    });
+                const response = await fetch(`${this.config.apiUrl}/nominations`, {
+                    method: 'GET',
+                    headers: { 'x-api-key': this.config.apiKey }
+                });
 
-                    if (!response.ok) {
-                        throw new Error(`API error: ${response.status}`);
-                    }
-
-                    const data = await response.json();
-                    console.log("Nominations data:", data); // Debug logging
-                    this.nominationsData = data;
-                    return data;
-                } catch (error) {
-                    console.error('Error fetching nominations:', error);
-                    throw error;
+                if (!response.ok) {
+                    throw new Error(`API error: ${response.status}`);
                 }
+
+                const data = await response.json();
+                this.nominationsData = data;
+                return data;
             }
 
             renderNominations() {
@@ -218,7 +214,6 @@
 
                 const { gamesList, monthYear, lastUpdated } = data;
 
-                // Fallback for empty data - showing a message
                 if (!gamesList || gamesList.length === 0) {
                     this.container.innerHTML = `
                         <div class="nominations-header">
@@ -233,7 +228,6 @@
                     return;
                 }
 
-                // Build header
                 let headerHTML = `
                     <div class="nominations-header">
                         <h2 class="nominations-title">Game Nominations</h2>
@@ -241,12 +235,10 @@
                     </div>
                 `;
 
-                // Build table
                 let tableRows = '';
                 gamesList.forEach(game => {
                     const nominators = game.nominatedBy.map(user => 
-                        `<span class="nominator">${user}</span>`
-                    ).join(' ');
+                        `<span class="nominator">${user}</span>`).join(' ');
 
                     tableRows += `
                         <tr>
@@ -260,12 +252,12 @@
 
                 let tableHTML = `
                     <div style="overflow-x: auto;">
-                        <table class="nominations-table">
+                        <table class="nominations-table" id="nominations-table">
                             <thead>
                                 <tr>
-                                    <th>Count</th>
-                                    <th>Game</th>
-                                    <th>Console</th>
+                                    <th data-sort="count">Count</th>
+                                    <th data-sort="title">Game</th>
+                                    <th data-sort="console">Console</th>
                                     <th class="nominators-cell">Nominated By</th>
                                 </tr>
                             </thead>
@@ -282,8 +274,44 @@
                     </div>
                 `;
 
-                // Assemble everything
                 this.container.innerHTML = headerHTML + tableHTML + lastUpdatedHTML;
+                this.addTableSorting();
+            }
+
+            addTableSorting() {
+                const table = document.getElementById('nominations-table');
+                if (!table) return;
+                const headers = table.querySelectorAll('th[data-sort]');
+                const rows = Array.from(table.querySelector('tbody').rows);
+
+                headers.forEach(header => {
+                    header.addEventListener('click', () => {
+                        const index = Array.from(header.parentNode.children).indexOf(header);
+                        const isNumeric = header.dataset.sort === 'count';
+
+                        rows.sort((a, b) => {
+                            const aText = a.cells[index].textContent.trim();
+                            const bText = b.cells[index].textContent.trim();
+
+                            return isNumeric
+                                ? Number(aText) - Number(bText)
+                                : aText.localeCompare(bText);
+                        });
+
+                        if (header.classList.contains('asc')) {
+                            rows.reverse();
+                            header.classList.remove('asc');
+                            header.classList.add('desc');
+                        } else {
+                            headers.forEach(h => h.classList.remove('asc', 'desc'));
+                            header.classList.add('asc');
+                        }
+
+                        const tbody = table.querySelector('tbody');
+                        tbody.innerHTML = '';
+                        rows.forEach(row => tbody.appendChild(row));
+                    });
+                });
             }
 
             startAutoRefresh() {
@@ -301,21 +329,12 @@
             }
         }
 
-        // Add console.log for debugging errors
-        window.onerror = function(message, source, lineno, colno, error) {
-            console.error('Global error:', message, error);
-        };
-
-        // Initialize on page load
-        document.addEventListener('DOMContentLoaded', function() {
-            console.log("DOM loaded, initializing nominations");
+        document.addEventListener('DOMContentLoaded', () => {
             new Nominations('ra-nominations', CONFIG);
         });
 
-        // Also initialize immediately in case DOMContentLoaded already fired
         if (document.readyState === 'complete' || document.readyState === 'interactive') {
-            console.log("DOM already loaded, initializing nominations now");
-            setTimeout(function() {
+            setTimeout(() => {
                 new Nominations('ra-nominations', CONFIG);
             }, 1);
         }
