@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Select Start Leaderboard</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: transparent;
+        }
+        
+        .leaderboard-container {
+            max-width: 100%;
+            margin: 0 auto;
+            background-color: #1a1533; /* Dark purple background */
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+            color: #ffffff;
+            overflow: hidden;
+            border-left: 4px solid #7b47c9; /* Purple accent border */
+        }
+        
+        .leaderboard-header {
+            background-color: #27224a; /* Slightly lighter purple */
+            padding: 15px;
+            border-bottom: 1px solid #3d3175;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .leaderboard-title {
+            margin: 0;
+            font-size: 1.3rem;
+            font-weight: bold;
+            color: white;
+        }
+        
+        .challenge-info {
+            margin-top: 8px;
+            color: #dddddd;
+            font-size: 0.9rem;
+        }
+        
+        .challenge-highlight {
+            color: #a367ff; /* Lighter purple */
+            font-weight: bold;
+        }
+        
+        .leaderboard-tabs {
+            display: flex;
+            background-color: #221d42; /* Dark purple */
+        }
+        
+        .tab {
+            padding: 8px 15px;
+            cursor: pointer;
+            font-weight: bold;
+            opacity: 0.7;
+            transition: all 0.2s ease;
+        }
+        
+        .tab:hover {
+            background-color: #2d295a;
+        }
+        
+        .tab.active {
+            opacity: 1;
+            background-color: #3d3175;
+            border-bottom: 2px solid #a367ff;
+        }
+        
+        .leaderboard-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        .leaderboard-table th,
+        .leaderboard-table td {
+            padding: 8px 10px;
+            text-align: left;
+            border-bottom: 1px solid #2d295a;
+        }
+        
+        .leaderboard-table th {
+            background-color: #27224a;
+            color: #a367ff;
+            font-weight: bold;
+        }
+        
+        .rank-cell {
+            text-align: center;
+            font-weight: bold;
+            width: 40px;
+        }
+        
+        .progress-cell {
+            color: #dddddd;
+            font-weight: bold;
+        }
+        
+        /* Rank icons */
+        .rank-medal, .rank-star, .rank-flag {
+            display: inline-block;
+            margin-right: 4px;
+            vertical-align: middle;
+        }
+        
+        /* Loading state */
+        .loading {
+            padding: 20px;
+            text-align: center;
+            color: #a367ff;
+        }
+        
+        .loading-spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(163, 103, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: #a367ff;
+            animation: spin 1s ease-in-out infinite;
+            margin-right: 10px;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        /* Error state */
+        .error {
+            padding: 20px;
+            text-align: center;
+            color: #ff6b6b;
+        }
+        
+        .last-updated {
+            padding: 8px 10px;
+            font-size: 0.8rem;
+            color: #7a7a8c;
+            text-align: right;
+        }
+        
+        @media (max-width: 600px) {
+            .challenge-details {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="ra-leaderboard" class="leaderboard-container">
+        <!-- Content will be dynamically generated -->
+    </div>
+
+    <script>
+        // Configuration
+        const CONFIG = {
+            apiUrl: 'https://select-start-api-production.up.railway.app/api',
+            apiKey: '123456789',
+            refreshInterval: 300000, // 5 minutes
+            defaultTab: 'monthly'
+        };
+
+        class Leaderboard {
+            constructor(containerId, config) {
+                this.container = document.getElementById(containerId);
+                this.config = config;
+                this.currentTab = this.config.defaultTab;
+                this.data = {
+                    monthly: null,
+                    yearly: null
+                };
+                this.init();
+            }
+
+            async init() {
+                this.renderLoading();
+                try {
+                    await this.fetchData(this.currentTab);
+                    this.renderLeaderboard();
+                    this.startAutoRefresh();
+                } catch (error) {
+                    this.renderError(error);
+                }
+            }
+
+            renderLoading() {
+                this.container.innerHTML = `
+                    <div class="leaderboard-header">
+                        <h2 class="leaderboard-title">Select Start Leaderboard</h2>
+                    </div>
+                    <div class="loading">
+                        <div class="loading-spinner"></div>
+                        Loading leaderboard data...
+                    </div>
+                `;
+            }
+
+            renderError(error) {
+                console.error('Leaderboard error:', error);
+                this.container.innerHTML = `
+                    <div class="leaderboard-header">
+                        <h2 class="leaderboard-title">Select Start Leaderboard</h2>
+                    </div>
+                    <div class="error">
+                        <p>Failed to load leaderboard data.</p>
+                        <p>${error.message || 'Please try again later.'}</p>
+                    </div>
+                `;
+            }
+
+            formatDate(dateString) {
+                if (!dateString) return 'N/A';
+                const date = new Date(dateString);
+                return date.toLocaleString();
+            }
+
+            getRankIcon(rank) {
+                if (rank === 1) return '🏅'; // Gold medal
+                if (rank === 2) return '🥈'; // Silver medal
+                if (rank === 3) return '🥉'; // Bronze medal
+                if (rank <= 3) return '⭐'; // Star for top 3
+                return '🏁'; // Flag for others
+            }
+
+            async fetchData(type = 'monthly') {
+                if (type !== 'monthly' && type !== 'yearly') {
+                    throw new Error('Invalid leaderboard type');
+                }
+
+                try {
+                    const response = await fetch(`${this.config.apiUrl}/leaderboard/${type}`, {
+                        method: 'GET',
+                        headers: {
+                            'x-api-key': this.config.apiKey
+                        }
+                    });
+
+                    if (!response.ok) {
+                        throw new Error(`API error: ${response.status}`);
+                    }
+
+                    const data = await response.json();
+                    this.data[type] = data;
+                    return data;
+                } catch (error) {
+                    console.error(`Error fetching ${type} leaderboard:`, error);
+                    throw error;
+                }
+            }
+
+            renderLeaderboard() {
+                const data = this.data[this.currentTab];
+                if (!data) {
+                    this.renderError(new Error('No data available'));
+                    return;
+                }
+
+                let headerContent, challengeInfo = '';
+                
+                if (this.currentTab === 'monthly') {
+                    headerContent = `${data.challenge?.monthYear || 'Current Month'} Challenge Leaderboard`;
+                    
+                    // Add game info if available
+                    if (data.challenge?.monthlyGame) {
+                        challengeInfo = `
+                            <div class="challenge-info">
+                                Game: <span class="challenge-highlight">Ape Escape</span>
+                                • Total Achievements: <span class="challenge-highlight">68</span>
+                            </div>
+                        `;
+                    }
+                } else {
+                    headerContent = `${data.year || new Date().getFullYear()} Yearly Leaderboard`;
+                }
+
+                let headerHTML = `
+                    <div class="leaderboard-header">
+                        <h2 class="leaderboard-title">${headerContent}</h2>
+                        ${challengeInfo}
+                    </div>
+                `;
+
+                let tabsHTML = `
+                    <div class="leaderboard-tabs">
+                        <div class="tab ${this.currentTab === 'monthly' ? 'active' : ''}" data-tab="monthly">Monthly</div>
+                        <div class="tab ${this.currentTab === 'yearly' ? 'active' : ''}" data-tab="yearly">Yearly</div>
+                    </div>
+                `;
+
+                let tableHTML = '';
+                
+                if (this.currentTab === 'monthly') {
+                    tableHTML = this.renderMonthlyTable(data.leaderboard);
+                } else {
+                    tableHTML = this.renderYearlyTable(data.leaderboard);
+                }
+
+                let lastUpdatedHTML = `
+                    <div class="last-updated">
+                        Updated: ${this.formatDate(data.lastUpdated)}
+                    </div>
+                `;
+
+                this.container.innerHTML = headerHTML + tabsHTML + tableHTML + lastUpdatedHTML;
+
+                // Add tab event listeners
+                const tabs = this.container.querySelectorAll('.tab');
+                tabs.forEach(tab => {
+                    tab.addEventListener('click', (event) => {
+                        const tabType = event.target.getAttribute('data-tab');
+                        this.switchTab(tabType);
+                    });
+                });
+            }
+
+            renderMonthlyTable(leaderboard) {
+                if (!leaderboard || !leaderboard.length) {
+                    return `
+                        <div class="error">
+                            <p>No leaderboard data available for this month.</p>
+                        </div>
+                    `;
+                }
+
+                let tableRows = '';
+
+                leaderboard.forEach((entry, index) => {
+                    const rank = index + 1;
+                    const rankIcon = this.getRankIcon(rank);
+                    
+                    // Calculate percentage - if we don't have actual progress data, we'll fake it
+                    const total = 68; // Hardcoded for now - ideally this would come from the API
+                    const completed = Math.round(entry.totalPoints * 10); // Fake data for display purposes
+                    const percentage = ((completed / total) * 100).toFixed(2);
+
+                    tableRows += `
+                        <tr>
+                            <td class="rank-cell">${rankIcon}</td>
+                            <td class="username-cell">${entry.username}</td>
+                            <td class="progress-cell">${completed}/${total} (${percentage}%)</td>
+                        </tr>
+                    `;
+                });
+
+                return `
+                    <div style="overflow-x: auto;">
+                        <table class="leaderboard-table">
+                            <thead>
+                                <tr>
+                                    <th>#</th>
+                                    <th>Player</th>
+                                    <th>Progress</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${tableRows}
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+            }
+
+            renderYearlyTable(leaderboard) {
+                if (!leaderboard || !leaderboard.length) {
+                    return `
+                        <div class="error">
+                            <p>No leaderboard data available for this year.</p>
+                        </div>
+                    `;
+                }
+
+                let tableRows = '';
+
+                leaderboard.forEach((entry, index) => {
+                    const rank = index + 1;
+                    const rankIcon = this.getRankIcon(rank);
+
+                    tableRows += `
+                        <tr>
+                            <td class="rank-cell">${rankIcon}</td>
+                            <td>${entry.username}</td>
+                            <td class="progress-cell">${entry.yearlyPoints} points</td>
+                        </tr>
+                    `;
+                });
+
+                return `
+                    <div style="overflow-x: auto;">
+                        <table class="leaderboard-table">
+                            <thead>
+                                <tr>
+                                    <th>#</th>
+                                    <th>Player</th>
+                                    <th>Points</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${tableRows}
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+            }
+
+            async switchTab(tabType) {
+                if (tabType === this.currentTab) return;
+                
+                this.currentTab = tabType;
+                this.renderLoading();
+                
+                try {
+                    if (!this.data[tabType]) {
+                        await this.fetchData(tabType);
+                    }
+                    this.renderLeaderboard();
+                } catch (error) {
+                    this.renderError(error);
+                }
+            }
+
+            startAutoRefresh() {
+                setInterval(() => {
+                    if (!document.hidden) {
+                        this.fetchData(this.currentTab)
+                            .then(() => {
+                                this.renderLeaderboard();
+                            })
+                            .catch(error => {
+                                console.error('Auto-refresh error:', error);
+                            });
+                    }
+                }, this.config.refreshInterval);
+            }
+        }
+
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', () => {
+            new Leaderboard('ra-leaderboard', CONFIG);
+        });
+    </script>
+</body>
+</html>

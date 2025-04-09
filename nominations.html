@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Select Start Nominations</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: transparent;
+        }
+        
+        .nominations-container {
+            max-width: 100%;
+            margin: 0 auto;
+            background-color: #1a1533; /* Dark purple background */
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+            color: #ffffff;
+            overflow: hidden;
+            border-left: 4px solid #7b47c9; /* Purple accent border */
+        }
+        
+        .nominations-header {
+            background-color: #27224a; /* Slightly lighter purple */
+            padding: 15px;
+            border-bottom: 1px solid #3d3175;
+        }
+        
+        .nominations-title {
+            margin: 0;
+            font-size: 1.3rem;
+            font-weight: bold;
+            color: white;
+        }
+        
+        .nominations-subtitle {
+            margin-top: 5px;
+            font-size: 0.9rem;
+            color: #a367ff;
+        }
+        
+        .nominations-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        .nominations-table th,
+        .nominations-table td {
+            padding: 8px 10px;
+            text-align: left;
+            border-bottom: 1px solid #2d295a;
+        }
+        
+        .nominations-table th {
+            background-color: #27224a;
+            color: #a367ff;
+            font-weight: bold;
+        }
+        
+        .count-cell {
+            text-align: center;
+            font-weight: bold;
+            color: #a367ff;
+            width: 60px;
+        }
+        
+        .nominators-cell {
+            font-size: 0.9em;
+        }
+        
+        .nominator {
+            display: inline-block;
+            background-color: #2d295a;
+            padding: 3px 6px;
+            border-radius: 4px;
+            margin: 2px;
+            font-size: 0.9em;
+        }
+        
+        /* Loading state */
+        .loading {
+            padding: 20px;
+            text-align: center;
+            color: #a367ff;
+        }
+        
+        .loading-spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(163, 103, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: #a367ff;
+            animation: spin 1s ease-in-out infinite;
+            margin-right: 10px;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        /* Error state */
+        .error {
+            padding: 20px;
+            text-align: center;
+            color: #ff6b6b;
+        }
+        
+        .last-updated {
+            padding: 8px 10px;
+            font-size: 0.8rem;
+            color: #7a7a8c;
+            text-align: right;
+        }
+        
+        @media (max-width: 600px) {
+            .nominators-cell {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="ra-nominations" class="nominations-container">
+        <!-- Content will be dynamically generated -->
+    </div>
+
+    <script>
+        // Configuration
+        const CONFIG = {
+            apiUrl: 'https://select-start-api-production.up.railway.app/api',
+            apiKey: '123456789',
+            refreshInterval: 300000 // 5 minutes
+        };
+
+        class Nominations {
+            constructor(containerId, config) {
+                this.container = document.getElementById(containerId);
+                this.config = config;
+                this.nominationsData = null;
+                this.init();
+            }
+
+            async init() {
+                this.renderLoading();
+                try {
+                    await this.fetchData();
+                    this.renderNominations();
+                    this.startAutoRefresh();
+                } catch (error) {
+                    this.renderError(error);
+                }
+            }
+
+            renderLoading() {
+                this.container.innerHTML = `
+                    <div class="nominations-header">
+                        <h2 class="nominations-title">Game Nominations</h2>
+                    </div>
+                    <div class="loading">
+                        <div class="loading-spinner"></div>
+                        Loading nominations data...
+                    </div>
+                `;
+            }
+
+            renderError(error) {
+                console.error('Nominations error:', error);
+                this.container.innerHTML = `
+                    <div class="nominations-header">
+                        <h2 class="nominations-title">Game Nominations</h2>
+                    </div>
+                    <div class="error">
+                        <p>Failed to load nominations data.</p>
+                        <p>${error.message || 'Please try again later.'}</p>
+                    </div>
+                `;
+            }
+
+            formatDate(dateString) {
+                if (!dateString) return 'N/A';
+                const date = new Date(dateString);
+                return date.toLocaleString();
+            }
+
+            async fetchData() {
+                try {
+                    const response = await fetch(`${this.config.apiUrl}/nominations`, {
+                        method: 'GET',
+                        headers: {
+                            'x-api-key': this.config.apiKey
+                        }
+                    });
+
+                    if (!response.ok) {
+                        throw new Error(`API error: ${response.status}`);
+                    }
+
+                    const data = await response.json();
+                    console.log("Nominations data:", data); // Debug logging
+                    this.nominationsData = data;
+                    return data;
+                } catch (error) {
+                    console.error('Error fetching nominations:', error);
+                    throw error;
+                }
+            }
+
+            renderNominations() {
+                const data = this.nominationsData;
+                if (!data) {
+                    this.renderError(new Error('No data available'));
+                    return;
+                }
+
+                const { gamesList, monthYear, lastUpdated } = data;
+
+                // Fallback for empty data - showing a message
+                if (!gamesList || gamesList.length === 0) {
+                    this.container.innerHTML = `
+                        <div class="nominations-header">
+                            <h2 class="nominations-title">Game Nominations</h2>
+                            <div class="nominations-subtitle">${monthYear || 'Current Month'}</div>
+                        </div>
+                        <div style="padding: 20px; text-align: center;">
+                            <p>No nominations have been submitted yet for this month.</p>
+                            <p>Use the <code>/nominate</code> command in Discord to suggest games!</p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                // Build header
+                let headerHTML = `
+                    <div class="nominations-header">
+                        <h2 class="nominations-title">Game Nominations</h2>
+                        <div class="nominations-subtitle">${monthYear}</div>
+                    </div>
+                `;
+
+                // Build table
+                let tableRows = '';
+                gamesList.forEach(game => {
+                    const nominators = game.nominatedBy.map(user => 
+                        `<span class="nominator">${user}</span>`
+                    ).join(' ');
+
+                    tableRows += `
+                        <tr>
+                            <td class="count-cell">${game.count}</td>
+                            <td>${game.gameTitle}</td>
+                            <td>${game.consoleName}</td>
+                            <td class="nominators-cell">${nominators}</td>
+                        </tr>
+                    `;
+                });
+
+                let tableHTML = `
+                    <div style="overflow-x: auto;">
+                        <table class="nominations-table">
+                            <thead>
+                                <tr>
+                                    <th>Count</th>
+                                    <th>Game</th>
+                                    <th>Console</th>
+                                    <th class="nominators-cell">Nominated By</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${tableRows}
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+
+                let lastUpdatedHTML = `
+                    <div class="last-updated">
+                        Updated: ${this.formatDate(lastUpdated)}
+                    </div>
+                `;
+
+                // Assemble everything
+                this.container.innerHTML = headerHTML + tableHTML + lastUpdatedHTML;
+            }
+
+            startAutoRefresh() {
+                setInterval(() => {
+                    if (!document.hidden) {
+                        this.fetchData()
+                            .then(() => {
+                                this.renderNominations();
+                            })
+                            .catch(error => {
+                                console.error('Auto-refresh error:', error);
+                            });
+                    }
+                }, this.config.refreshInterval);
+            }
+        }
+
+        // Add console.log for debugging errors
+        window.onerror = function(message, source, lineno, colno, error) {
+            console.error('Global error:', message, error);
+        };
+
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log("DOM loaded, initializing nominations");
+            new Nominations('ra-nominations', CONFIG);
+        });
+
+        // Also initialize immediately in case DOMContentLoaded already fired
+        if (document.readyState === 'complete' || document.readyState === 'interactive') {
+            console.log("DOM already loaded, initializing nominations now");
+            setTimeout(function() {
+                new Nominations('ra-nominations', CONFIG);
+            }, 1);
+        }
+    </script>
+</body>
+</html>
