@@ -1,292 +1,503 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Select Start Leaderboard</title>
-  <style>
-    /* Your full existing CSS remains unchanged... */
-    /* To save space here, I'm omitting it, but your original CSS from <style> to </style> goes here. */
-  </style>
-</head>
-<body>
-  <div id="ra-leaderboard" class="leaderboard-container"></div>
+<style>
+/* ============================================= */
+/* == PASTE YOUR FULL CSS RULES HERE          == */
+/* == (Replace this comment block)            == */
+/* ============================================= */
 
-  <script>
-    const CONFIG = {
-      apiUrl: 'https://select-start-api-production.up.railway.app/api',
-      apiKey: '123456789',
-      refreshInterval: 300000,
-      defaultTab: 'monthly'
-    };
+/* Example Basic Styling (replace/merge with yours): */
+.leaderboard-container {
+  font-family: sans-serif;
+  background-color: #2a2a2e; /* Dark background like image */
+  color: #eee;
+  padding: 15px;
+  border-radius: 8px;
+  max-width: 500px; /* Adjust as needed */
+  margin: 0 auto;
+}
+.leaderboard-header {
+  text-align: center;
+  margin-bottom: 15px;
+  border-bottom: 1px solid #444;
+  padding-bottom: 10px;
+}
+.leaderboard-title {
+  margin: 0 0 5px 0;
+  font-size: 1.4em;
+  color: #fff; /* Brighter title */
+}
+.challenge-info {
+    font-size: 0.9em;
+    color: #ccc;
+}
+.challenge-highlight {
+    font-weight: bold;
+    color: #fff;
+}
+.leaderboard-tabs {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 15px;
+}
+.tab {
+  padding: 8px 15px;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  margin: 0 5px;
+  color: #aaa; /* Dimmer inactive tab */
+  transition: all 0.2s ease-in-out;
+}
+.tab:hover {
+  color: #eee;
+}
+.tab.active {
+  color: #fff; /* White active tab */
+  border-bottom-color: #a8a; /* Lilac/Purple accent like image */
+  font-weight: bold;
+}
+.leaderboard-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 15px;
+}
+.leaderboard-table th,
+.leaderboard-table td {
+  padding: 8px 10px;
+  text-align: left;
+  border-bottom: 1px solid #444;
+}
+.leaderboard-table th {
+  color: #ccc; /* Header text color */
+  font-weight: bold;
+}
+.leaderboard-table tbody tr:last-child td {
+    border-bottom: none;
+}
+.rank-cell {
+  width: 30px; /* Fixed width for rank icon */
+  text-align: center;
+  font-size: 1.1em; /* Make icons slightly bigger */
+}
+.username-cell {
+    /* Adjust if needed */
+}
+.progress-cell {
+  text-align: right;
+  white-space: nowrap; /* Prevent progress text wrap */
+}
+.last-updated {
+  text-align: center;
+  font-size: 0.8em;
+  color: #aaa;
+  margin-top: 10px;
+}
+.loading, .error {
+  text-align: center;
+  padding: 30px 15px;
+  color: #ccc;
+}
+.loading-spinner {
+  border: 4px solid #f3f3f3;
+  border-top: 4px solid #a8a; /* Lilac/Purple spinner */
+  border-radius: 50%;
+  width: 30px;
+  height: 30px;
+  animation: spin 1s linear infinite;
+  margin: 0 auto 10px auto;
+}
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+.error p {
+    margin: 5px 0;
+}
 
-    class Leaderboard {
-      constructor(containerId, config) {
-        this.container = document.getElementById(containerId);
-        this.config = config;
-        this.currentTab = this.config.defaultTab;
-        this.data = {
-          monthly: null,
-          yearly: null
-        };
-        this.init();
+/* Ensure table scrolls on small screens if needed */
+.table-wrapper {
+    overflow-x: auto;
+}
+
+</style>
+
+<div id="ra-leaderboard" class="leaderboard-container">
+  </div>
+
+<script>
+  const CONFIG = {
+    apiUrl: 'https://select-start-api-production.up.railway.app/api',
+    // IMPORTANT: Replace '123456789' with your ACTUAL API key!
+    apiKey: '123456789',
+    refreshInterval: 300000, // 5 minutes
+    defaultTab: 'monthly'
+  };
+
+  class Leaderboard {
+    constructor(containerId, config) {
+      // Find container *within the current script's document context* (important for embeds)
+      this.container = document.getElementById(containerId);
+      if (!this.container) {
+        console.error(`Leaderboard container with ID #${containerId} not found.`);
+        return; // Stop if container doesn't exist
       }
+      this.config = config;
+      this.currentTab = this.config.defaultTab;
+      this.data = {
+        monthly: null,
+        yearly: null
+      };
+      this.init();
+    }
 
-      async init() {
-        this.renderLoading();
-        try {
-          await this.fetchData(this.currentTab);
-          this.renderLeaderboard();
-          this.startAutoRefresh();
-        } catch (error) {
-          this.renderError(error);
-        }
-      }
-
-      renderLoading() {
-        this.container.innerHTML = `
-          <div class="leaderboard-header">
-            <h2 class="leaderboard-title">Select Start Leaderboard</h2>
-          </div>
-          <div class="loading">
-            <div class="loading-spinner"></div>
-            Loading leaderboard data...
-          </div>
-        `;
-      }
-
-      renderError(error) {
-        console.error('Leaderboard error:', error);
-        this.container.innerHTML = `
-          <div class="leaderboard-header">
-            <h2 class="leaderboard-title">Select Start Leaderboard</h2>
-          </div>
-          <div class="error">
-            <p>Failed to load leaderboard data.</p>
-            <p>${error.message || 'Please try again later.'}</p>
-          </div>
-        `;
-      }
-
-      formatDate(dateString) {
-        if (!dateString) return 'N/A';
-        const date = new Date(dateString);
-        return date.toLocaleString();
-      }
-
-      getRankIcon(rank) {
-        if (rank === 1) return '🏅';
-        if (rank === 2) return '🥈';
-        if (rank === 3) return '🥉';
-        if (rank <= 3) return '⭐';
-        return '🏁';
-      }
-
-      async fetchData(type = 'monthly') {
-        if (type !== 'monthly' && type !== 'yearly') {
-          throw new Error('Invalid leaderboard type');
-        }
-
-        const response = await fetch(`${this.config.apiUrl}/leaderboard/${type}`, {
-          method: 'GET',
-          headers: {
-            'x-api-key': this.config.apiKey
-          }
-        });
-
-        if (!response.ok) {
-          throw new Error(`API error: ${response.status}`);
-        }
-
-        const data = await response.json();
-        this.data[type] = data;
-        return data;
-      }
-
-      renderLeaderboard() {
-        const data = this.data[this.currentTab];
-        if (!data) {
-          this.renderError(new Error('No data available'));
-          return;
-        }
-
-        let headerContent, challengeInfo = '';
-
-        if (this.currentTab === 'monthly') {
-          headerContent = `${data.challenge?.monthYear || 'Current Month'} Challenge Leaderboard`;
-
-          if (data.challenge?.monthlyGame) {
-            challengeInfo = `
-              <div class="challenge-info">
-                Game: <span class="challenge-highlight">Ape Escape</span>
-                • Total Achievements: <span class="challenge-highlight">68</span>
-              </div>
-            `;
-          }
-        } else {
-          headerContent = `${data.year || new Date().getFullYear()} Yearly Leaderboard`;
-        }
-
-        let headerHTML = `
-          <div class="leaderboard-header">
-            <h2 class="leaderboard-title">${headerContent}</h2>
-            ${challengeInfo}
-          </div>
-        `;
-
-        let tabsHTML = `
-          <div class="leaderboard-tabs">
-            <div class="tab ${this.currentTab === 'monthly' ? 'active' : ''}" data-tab="monthly">Monthly</div>
-            <div class="tab ${this.currentTab === 'yearly' ? 'active' : ''}" data-tab="yearly">Yearly</div>
-          </div>
-        `;
-
-        let tableHTML = this.currentTab === 'monthly'
-          ? this.renderMonthlyTable(data.leaderboard)
-          : this.renderYearlyTable(data.leaderboard);
-
-        let lastUpdatedHTML = `
-          <div class="last-updated">
-            Updated: ${this.formatDate(data.lastUpdated)}
-          </div>
-        `;
-
-        this.container.innerHTML = headerHTML + tabsHTML + tableHTML + lastUpdatedHTML;
-
-        const tabs = this.container.querySelectorAll('.tab');
-        tabs.forEach(tab => {
-          tab.addEventListener('click', (event) => {
-            const tabType = event.target.getAttribute('data-tab');
-            this.switchTab(tabType);
-          });
-        });
-      }
-
-      renderMonthlyTable(leaderboard) {
-        if (!leaderboard || !leaderboard.length) {
-          return `
-            <div class="error">
-              <p>No leaderboard data available for this month.</p>
-            </div>
-          `;
-        }
-
-        const total = 68; // Hardcoded for now
-        const filtered = leaderboard.filter(entry => Math.round(entry.totalPoints * 10) > 0);
-
-        if (!filtered.length) {
-          return `
-            <div class="error">
-              <p>No active players yet for this month's challenge.</p>
-            </div>
-          `;
-        }
-
-        let tableRows = '';
-        filtered.forEach((entry, index) => {
-          const rank = index + 1;
-          const rankIcon = this.getRankIcon(rank);
-          const completed = Math.round(entry.totalPoints * 10);
-          const percentage = ((completed / total) * 100).toFixed(2);
-
-          tableRows += `
-            <tr>
-              <td class="rank-cell">${rankIcon}</td>
-              <td class="username-cell">${entry.username}</td>
-              <td class="progress-cell">${completed}/${total} (${percentage}%)</td>
-            </tr>
-          `;
-        });
-
-        return `
-          <div style="overflow-x: auto;">
-            <table class="leaderboard-table">
-              <thead>
-                <tr>
-                  <th>#</th>
-                  <th>Player</th>
-                  <th>Progress</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${tableRows}
-              </tbody>
-            </table>
-          </div>
-        `;
-      }
-
-      renderYearlyTable(leaderboard) {
-        if (!leaderboard || !leaderboard.length) {
-          return `
-            <div class="error">
-              <p>No leaderboard data available for this year.</p>
-            </div>
-          `;
-        }
-
-        let tableRows = '';
-        leaderboard.forEach((entry, index) => {
-          const rank = index + 1;
-          const rankIcon = this.getRankIcon(rank);
-
-          tableRows += `
-            <tr>
-              <td class="rank-cell">${rankIcon}</td>
-              <td>${entry.username}</td>
-              <td class="progress-cell">${entry.yearlyPoints} points</td>
-            </tr>
-          `;
-        });
-
-        return `
-          <div style="overflow-x: auto;">
-            <table class="leaderboard-table">
-              <thead>
-                <tr>
-                  <th>#</th>
-                  <th>Player</th>
-                  <th>Points</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${tableRows}
-              </tbody>
-            </table>
-          </div>
-        `;
-      }
-
-      async switchTab(tabType) {
-        if (tabType === this.currentTab) return;
-
-        this.currentTab = tabType;
-        this.renderLoading();
-
-        try {
-          if (!this.data[tabType]) {
-            await this.fetchData(tabType);
-          }
-          this.renderLeaderboard();
-        } catch (error) {
-          this.renderError(error);
-        }
-      }
-
-      startAutoRefresh() {
-        setInterval(() => {
-          if (!document.hidden) {
-            this.fetchData(this.currentTab)
-              .then(() => this.renderLeaderboard())
-              .catch(error => console.error('Auto-refresh error:', error));
-          }
-        }, this.config.refreshInterval);
+    async init() {
+      this.renderLoading();
+      try {
+        await this.fetchData(this.currentTab);
+        this.renderLeaderboard();
+        this.startAutoRefresh();
+      } catch (error) {
+        this.renderError(error);
       }
     }
 
-    document.addEventListener('DOMContentLoaded', () => {
-      new Leaderboard('ra-leaderboard', CONFIG);
-    });
-  </script>
-</body>
-</html>
+    renderLoading() {
+      if (!this.container) return;
+      this.container.innerHTML = `
+        <div class="leaderboard-header">
+          <h2 class="leaderboard-title">Select Start Leaderboard</h2>
+        </div>
+        <div class="loading">
+          <div class="loading-spinner"></div>
+          Loading leaderboard data...
+        </div>
+      `;
+    }
+
+    renderError(error) {
+      if (!this.container) return;
+      console.error('Leaderboard error:', error);
+      this.container.innerHTML = `
+        <div class="leaderboard-header">
+          <h2 class="leaderboard-title">Select Start Leaderboard</h2>
+        </div>
+        <div class="error">
+          <p>Failed to load leaderboard data.</p>
+          <p>${error.message || 'Please try again later.'}</p>
+          <p><small>Check browser console (F12) for details.</small></p>
+        </div>
+      `;
+    }
+
+    formatDate(dateString) {
+      if (!dateString) return 'N/A';
+      try {
+        const date = new Date(dateString);
+        // Check if date is valid before formatting
+        return isNaN(date.getTime()) ? 'Invalid Date' : date.toLocaleString();
+      } catch (e) {
+          return 'Invalid Date';
+      }
+    }
+
+    getRankIcon(rank) {
+      // Match icons from the image
+      if (rank === 1) return '🥇'; // Gold Medal emoji often renders similar to blue Y
+      if (rank === 2) return '🥈'; // Silver Medal emoji often renders similar to yellow Y
+      if (rank === 3) return '🥉'; // Bronze Medal emoji often renders similar to orange Y
+      // Using a simple flag for others as in the image
+      return '🏳️'; // White Flag emoji
+    }
+
+    async fetchData(type = 'monthly') {
+      if (type !== 'monthly' && type !== 'yearly') {
+        throw new Error('Invalid leaderboard type specified');
+      }
+      if (!this.config.apiKey || this.config.apiKey === '123456789') {
+          throw new Error('API Key is missing or using placeholder.');
+      }
+
+      const url = `${this.config.apiUrl}/leaderboard/${type}`;
+      console.log(`Workspaceing data from: ${url}`); // Log URL for debugging
+
+      try {
+          const response = await fetch(url, {
+            method: 'GET',
+            headers: {
+              'x-api-key': this.config.apiKey
+            }
+          });
+
+          console.log(`API Response Status: ${response.status}`); // Log status
+
+          if (!response.ok) {
+            let errorMsg = `API error: ${response.status}`;
+            try {
+                const errorData = await response.json();
+                errorMsg += ` - ${errorData.message || JSON.stringify(errorData)}`;
+            } catch (e) {
+                // Ignore if error response is not JSON
+            }
+            throw new Error(errorMsg);
+          }
+
+          const data = await response.json();
+          console.log(`Data received for ${type}:`, data); // Log received data
+          this.data[type] = data;
+          return data;
+
+      } catch (error) {
+          console.error(`Workspace error for ${type}:`, error);
+          // Rethrow to be caught by init or switchTab
+          throw error;
+      }
+    }
+
+    renderLeaderboard() {
+      if (!this.container) return;
+      const data = this.data[this.currentTab];
+
+      if (!data) {
+        // Don't show 'No data available' if it's still loading or just errored.
+        // Error state is handled by renderError. If data is null after fetch, it means error occurred.
+        // If fetch was successful but data *is* empty (e.g., empty leaderboard array), the table renderers handle it.
+        if (!this.container.querySelector('.loading') && !this.container.querySelector('.error')) {
+             this.renderError(new Error('Data is missing after fetch attempt.'));
+        }
+        return;
+      }
+
+      let headerContent = '';
+      let challengeInfo = '';
+
+      if (this.currentTab === 'monthly') {
+        const monthYear = data.challenge?.monthYear || 'Current Month';
+        headerContent = `${monthYear} Challenge Leaderboard`;
+
+        // Use API data for game details if available, otherwise hide section
+        const gameName = data.challenge?.monthlyGame?.title; // Assuming title property
+        const totalAchievements = data.challenge?.monthlyGame?.totalAchievements; // Assuming this property
+
+        // Update: Using the actual data from the API if present
+        if (gameName && totalAchievements) {
+          challengeInfo = `
+            <div class="challenge-info">
+              Game: <span class="challenge-highlight">${gameName}</span>
+              • Total Achievements: <span class="challenge-highlight">${totalAchievements}</span>
+            </div>
+          `;
+        } else if (data.challenge) { // If challenge exists but no game details
+           challengeInfo = `<div class="challenge-info">Monthly Challenge</div>`;
+        }
+
+      } else { // Yearly
+        headerContent = `${data.year || new Date().getFullYear()} Yearly Leaderboard`;
+      }
+
+      let headerHTML = `
+        <div class="leaderboard-header">
+          <h2 class="leaderboard-title">${headerContent}</h2>
+          ${challengeInfo}
+        </div>
+      `;
+
+      let tabsHTML = `
+        <div class="leaderboard-tabs">
+          <div class="tab ${this.currentTab === 'monthly' ? 'active' : ''}" data-tab="monthly">Monthly</div>
+          <div class="tab ${this.currentTab === 'yearly' ? 'active' : ''}" data-tab="yearly">Yearly</div>
+        </div>
+      `;
+
+      // Pass the whole data object,monthly render might need total points info
+      let tableHTML = this.currentTab === 'monthly'
+        ? this.renderMonthlyTable(data)
+        : this.renderYearlyTable(data.leaderboard); // Yearly just needs the array
+
+      let lastUpdatedHTML = `
+        <div class="last-updated">
+          Updated: ${this.formatDate(data.lastUpdated)}
+        </div>
+      `;
+
+      this.container.innerHTML = headerHTML + tabsHTML + tableHTML + lastUpdatedHTML;
+
+      // Re-attach event listeners for tabs
+      const tabs = this.container.querySelectorAll('.tab');
+      tabs.forEach(tab => {
+        // Use an arrow function to maintain 'this' context
+        tab.addEventListener('click', (event) => {
+          const tabType = event.target.getAttribute('data-tab');
+          this.switchTab(tabType);
+        });
+      });
+    }
+
+    // Updated to accept the full monthly data object
+    renderMonthlyTable(monthlyData) {
+      const leaderboard = monthlyData.leaderboard;
+      const totalAchievements = monthlyData.challenge?.monthlyGame?.totalAchievements;
+
+      if (!leaderboard || leaderboard.length === 0) {
+        return `<div class="error"><p>No leaderboard data available for this month.</p></div>`;
+      }
+
+      // Use totalAchievements from API if available, fallback needed if not provided
+      const total = totalAchievements || 1; // Fallback to 1 to avoid division by zero, though ideally API provides it
+      if (!totalAchievements) {
+          console.warn("Total achievements not found in API response for monthly challenge. Progress calculation might be inaccurate.");
+      }
+
+      // Filter out entries with zero points *if needed* (based on original code)
+      // Original code filtered on `Math.round(entry.totalPoints * 10) > 0`
+      // Let's assume entry.totalPoints directly represents the number completed
+      const filtered = leaderboard.filter(entry => entry.totalPoints > 0);
+
+      if (filtered.length === 0) {
+        return `<div class="error"><p>No active players yet for this month's challenge.</p></div>`;
+      }
+
+      let tableRows = '';
+      filtered.forEach((entry, index) => {
+        const rank = index + 1;
+        const rankIcon = this.getRankIcon(rank);
+        // Assuming totalPoints is the number completed
+        const completed = entry.totalPoints;
+        // Calculate percentage safely, handle case where total might be 0 or unavailable
+        const percentage = total > 0 ? ((completed / total) * 100).toFixed(2) : 0;
+
+        tableRows += `
+          <tr>
+            <td class="rank-cell">${rankIcon}</td>
+            <td class="username-cell">${entry.username}</td>
+            <td class="progress-cell">${completed}${totalAchievements ? `/${total}` : ''} (${percentage}%)</td>
+          </tr>
+        `;
+      });
+
+      return `
+        <div class="table-wrapper">
+          <table class="leaderboard-table">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Player</th>
+                <th>Progress</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${tableRows}
+            </tbody>
+          </table>
+        </div>
+      `;
+    }
+
+    renderYearlyTable(leaderboard) {
+      if (!leaderboard || leaderboard.length === 0) {
+        return `<div class="error"><p>No leaderboard data available for this year.</p></div>`;
+      }
+
+      let tableRows = '';
+      leaderboard.forEach((entry, index) => {
+        const rank = index + 1;
+        const rankIcon = this.getRankIcon(rank);
+
+        tableRows += `
+          <tr>
+            <td class="rank-cell">${rankIcon}</td>
+            <td class="username-cell">${entry.username}</td>
+            <td class="progress-cell">${entry.yearlyPoints} points</td>
+          </tr>
+        `;
+      });
+
+      return `
+        <div class="table-wrapper">
+          <table class="leaderboard-table">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Player</th>
+                <th>Points</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${tableRows}
+            </tbody>
+          </table>
+        </div>
+      `;
+    }
+
+    async switchTab(tabType) {
+      if (tabType === this.currentTab) return; // Do nothing if clicking the active tab
+
+      console.log(`Switching tab to: ${tabType}`);
+      this.currentTab = tabType;
+      this.renderLoading(); // Show loading state while switching/fetching
+
+      try {
+        // Fetch data only if it hasn't been fetched before for this tab
+        if (!this.data[tabType]) {
+          console.log(`Data for ${tabType} not cached. Fetching...`);
+          await this.fetchData(tabType);
+        } else {
+          console.log(`Using cached data for ${tabType}.`);
+        }
+        this.renderLeaderboard(); // Render with the (potentially new) data
+      } catch (error) {
+        // Render error specifically for this tab switch failure
+        this.renderError(new Error(`Failed to load ${tabType} leaderboard: ${error.message}`));
+      }
+    }
+
+    startAutoRefresh() {
+      if (this.config.refreshInterval > 0 && !this.refreshTimer) {
+          console.log(`Starting auto-refresh every ${this.config.refreshInterval / 1000} seconds.`);
+          this.refreshTimer = setInterval(async () => {
+              // Check if the embed is visible (approximated by document.hidden)
+              if (!document.hidden) {
+                  console.log(`Auto-refreshing ${this.currentTab} tab...`);
+                  try {
+                      // Re-fetch data for the currently active tab
+                      await this.fetchData(this.currentTab);
+                      // Only re-render if the tab hasn't been switched while fetching
+                      // (This check might be overly cautious, usually direct render is fine)
+                      if (this.currentTab === this.currentTab) { // Simple check
+                          this.renderLeaderboard();
+                      }
+                  } catch (error) {
+                      console.error('Auto-refresh error:', error);
+                      // Optionally display a non-intrusive error message
+                  }
+              } else {
+                  console.log("Auto-refresh skipped (document hidden).");
+              }
+          }, this.config.refreshInterval);
+      }
+    }
+
+    // Optional: Method to stop refresh if needed (e.g., if element is removed)
+    stopAutoRefresh() {
+        if (this.refreshTimer) {
+            clearInterval(this.refreshTimer);
+            this.refreshTimer = null;
+            console.log("Auto-refresh stopped.");
+        }
+    }
+  }
+
+  // Initialize the leaderboard when the embed's content is loaded
+  // Using a self-executing function to avoid polluting global scope further
+  (function() {
+      // Check if the script is running in a context with `document`
+      if (typeof document !== 'undefined') {
+          // Use DOMContentLoaded to ensure the container element exists
+          document.addEventListener('DOMContentLoaded', () => {
+              console.log("DOM Loaded. Initializing Leaderboard.");
+              new Leaderboard('ra-leaderboard', CONFIG);
+          });
+      } else {
+          console.error("Cannot initialize leaderboard: `document` is not available.");
+      }
+  })();
+
+</script>
