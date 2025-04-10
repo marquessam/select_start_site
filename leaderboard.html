@@ -70,25 +70,6 @@
             color: #bbbbbb;
         }
         
-        .achievement-types {
-            margin-top: 15px;
-            display: flex;
-            flex-wrap: wrap; /* Allow wrapping on mobile */
-            gap: 10px;
-            font-size: 0.9rem;
-        }
-        
-        .achievement-type {
-            display: flex;
-            align-items: center;
-            margin-bottom: 5px; /* Add space between wrapped items */
-        }
-        
-        .achievement-icon {
-            margin-right: 5px;
-            display: inline-block;
-        }
-        
         .note {
             margin-top: 10px;
             font-style: italic;
@@ -272,10 +253,6 @@
                 margin-bottom: 15px;
             }
             
-            .achievement-types {
-                justify-content: center;
-            }
-            
             .rankings-title {
                 text-align: center;
                 margin-left: 0;
@@ -283,10 +260,6 @@
             
             .player-item {
                 padding: 10px 8px; /* More vertical padding for touch targets */
-            }
-            
-            .separator {
-                display: none;
             }
         }
         
@@ -305,12 +278,6 @@
             
             .challenge-title {
                 font-size: 1.1rem;
-            }
-            
-            .achievement-types {
-                flex-direction: column;
-                align-items: flex-start;
-                gap: 5px;
             }
             
             .tab {
@@ -335,8 +302,7 @@
             apiKey: '123456789',
             refreshInterval: 300000, // 5 minutes
             // Debug mode - set to true to see raw API response
-            debug: false,
-            // Achievement types for display
+            debug: false
         };
 
         class DiscordLeaderboard {
@@ -508,15 +474,6 @@
                                 <div class="challenge-details">Total Achievements: ${challenge.totalAchievements || 0}</div>
                                 <div class="challenge-details">Challenge Ends: ${challenge.endDate || ''}</div>
                                 <div class="time-remaining">Time Remaining: ${challenge.timeRemaining || ''}</div>
-                                
-                                <div class="achievement-types">
-                                    ${this.config.achievementTypes.map((ach, index) => 
-                                        `<div class="achievement-type">
-                                            <span class="achievement-icon">${ach.icon}</span>
-                                            ${ach.type} (${ach.points}pts)
-                                        </div>${index < this.config.achievementTypes.length - 1 ? '<span class="separator"> | </span>' : ''}`
-                                    ).join('')}
-                                </div>
                                 
                                 <div class="note">
                                     Note: Only achievements earned during ${challenge.monthYear ? challenge.monthYear.split(' ')[0] : 'this month'} count toward challenge status.
