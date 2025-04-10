@@ -150,13 +150,6 @@
             text-align: right;
         }
         
-        .points {
-            color: #a367ff;
-            margin-right: 10px;
-            text-align: right;
-            min-width: 50px;
-        }
-        
         .player-selection-indicator {
             position: absolute;
             width: 3px;
@@ -272,7 +265,7 @@
             ]
         };
 
-        class DiscordLeaderboard {
+                                                        class DiscordLeaderboard {
             constructor(containerId, config) {
                 this.container = document.getElementById(containerId);
                 this.config = config;
@@ -344,6 +337,16 @@
                     
                     // If we're on the monthly tab, sort the leaderboard by percentage
                     if (this.currentTab === 'monthly' && data.leaderboard && Array.isArray(data.leaderboard)) {
+                        // Process the leaderboard data to remove points display
+                        data.leaderboard.forEach(player => {
+                            // Remove any point-related properties that might be displayed
+                            delete player.totalPoints;
+                            delete player.monthlyPoints;
+                            delete player.shadowPoints;
+                            delete player.points;
+                        });
+                        
+                        // Sort by percentage
                         data.leaderboard.sort((a, b) => {
                             // First compare by percentage in descending order
                             const percentA = a.percentage || 0;
@@ -480,20 +483,6 @@
                                     
                                     // Get achievement counts directly from API
                                     const achievements = player.achievements || player.achieved || 0;
-                                    
-                                    // Get the percentage directly from API or calculate it
-                                    let percentage = player.percentage;
-                                    if (percentage === undefined && totalAchievements > 0) {
-                                        percentage = (achievements / totalAchievements) * 100;
-                                    }
-                                    
-                                    // Make sure percentage is properly formatted
-                                    const formattedPercentage = percentage !== undefined
-                                        ? (Math.round(percentage * 100) / 100).toFixed(2)
-                                        : '0.00';
-                                    
-                                    // Total points for display
-                                    const totalPoints = player.totalPoints || player.monthlyPoints || 0;
                                     
                                     return `
                                         <li class="player-item" data-username="${player.username}">
