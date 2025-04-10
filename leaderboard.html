@@ -235,6 +235,11 @@
             border-bottom: 2px solid #a367ff;
         }
         
+        .separator {
+            color: #3d3175;
+            margin: 0 5px;
+        }
+        
         /* Debug panel for testing */
         .debug-panel {
             margin-top: 20px;
@@ -252,12 +257,6 @@
         
         .debug-panel.visible {
             display: block;
-        }
-        
-        /* Mobile specific styles */
-        .separator {
-            color: #3d3175;
-            margin: 0 5px;
         }
         
         /* Mobile specific styles */
@@ -335,12 +334,12 @@
             apiUrl: 'https://select-start-api-production.up.railway.app/api',
             apiKey: '123456789',
             refreshInterval: 300000, // 5 minutes
-            // Debug mode - set to true to see the raw API response
+            // Debug mode - set to true to see raw API response
             debug: false,
             // Achievement types for display
             achievementTypes: [
                 { type: "Mastery", points: 3, icon: "✨" },
-                { type: "Beaten", points: 3, icon: "⭐" },
+                { type: "Beaten", points: 2, icon: "⭐" },
                 { type: "Part.", points: 1, icon: "🎮" }
             ]
         };
@@ -420,32 +419,8 @@
                         this.debugPanel.innerHTML = JSON.stringify(data, null, 2);
                     }
                     
-                    // Ensure the leaderboard property exists
-                    if (!data.leaderboard || !Array.isArray(data.leaderboard)) {
-                        console.warn('API returned no leaderboard data or invalid format');
-                        data.leaderboard = [];
-                    }
-                    
                     // Process and clean up the data
-                    if (this.currentTab === 'monthly' && data.leaderboard.length > 0) {
-                        // Process data for display
-                        data.leaderboard = data.leaderboard.map(player => {
-                            // Ensure percentage is a number
-                            if (typeof player.percentage === 'string') {
-                                player.percentage = parseFloat(player.percentage);
-                            }
-                            
-                            // Ensure achievements is a number
-                            if (player.achievements && typeof player.achievements === 'string') {
-                                player.achievements = parseInt(player.achievements, 10);
-                            }
-                            if (player.achieved && typeof player.achieved === 'string') {
-                                player.achieved = parseInt(player.achieved, 10);
-                            }
-                            
-                            return player;
-                        });
-                        
+                    if (this.currentTab === 'monthly' && data.leaderboard && Array.isArray(data.leaderboard)) {
                         // Sort by percentage
                         data.leaderboard.sort((a, b) => {
                             // First compare by percentage in descending order
@@ -504,15 +479,9 @@
 
             renderLeaderboard() {
                 const data = this.leaderboardData;
-                if (!data) {
+                if (!data || !data.leaderboard) {
                     this.renderError(new Error('No leaderboard data available'));
                     return;
-                }
-
-                // Ensure leaderboard data exists
-                if (!data.leaderboard) {
-                    console.warn('Missing leaderboard data in API response:', data);
-                    data.leaderboard = [];
                 }
 
                 // Show tabs for monthly/yearly toggle
@@ -531,7 +500,7 @@
                     const challenge = data.challenge || {};
                     
                     // Get player data, which should already be sorted by the API
-                    const players = Array.isArray(data.leaderboard) ? data.leaderboard : [];
+                    const players = data.leaderboard || [];
 
                     headerHTML = `
                         <div class="leaderboard-header">
@@ -583,7 +552,7 @@
                                     const trophyHTML = isTrophy ? '<span class="trophy">🏆</span>' : '';
                                     
                                     // Get achievement counts directly from API
-                                                                                const achievements = player.achievements || player.achieved || 0;
+                                    const achievements = player.achievements || player.achieved || 0;
                                     
                                     // Get the percentage directly from API or calculate it
                                     let percentage = player.percentage;
@@ -620,7 +589,7 @@
                 } else {
                     // YEARLY LEADERBOARD
                     // Get player data, which should already be sorted by the API
-                    const players = Array.isArray(data.leaderboard) ? data.leaderboard : [];
+                    const players = data.leaderboard || [];
                     const year = data.year || new Date().getFullYear();
                     const pointSystem = data.pointSystem || {
                         mastery: 7,
