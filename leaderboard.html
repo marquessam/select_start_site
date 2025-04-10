@@ -366,7 +366,7 @@
                 const timeRemaining = challenge.timeRemaining || "21 days and 14 hours";
                 const gameIconUrl = challenge.gameIconUrl || "https://media.retroachievements.org/Images/061127.png";
                 
-                // Get leaderboard data
+                // The leaderboard should already be filtered and sorted from the API
                 const filteredPlayerData = data.leaderboard || [];
                 
                 // Show tabs for monthly/yearly toggle
@@ -407,64 +407,18 @@
                         </div>
                     `;
 
-                    // First, ensure leaderboard data is properly sorted by achievement percentage
-                    const sortedPlayerData = [...filteredPlayerData].sort((a, b) => {
-                        // First sort by achievements percentage (descending)
-                        const aPercentage = a.percentage || 0;
-                        const bPercentage = b.percentage || 0;
-                        
-                        if (bPercentage !== aPercentage) {
-                            return bPercentage - aPercentage;
-                        }
-                        
-                        // If percentages are equal, sort by achievement count
-                        const aAchieved = a.achieved || a.achievements || 0;
-                        const bAchieved = b.achieved || b.achievements || 0;
-                        
-                        if (bAchieved !== aAchieved) {
-                            return bAchieved - aAchieved;
-                        }
-                        
-                        // If still equal, sort alphabetically by username
-                        return a.username.localeCompare(b.username);
-                    });
-
-                    // Now calculate ranks properly, with ties getting the same rank
-                    let currentRank = 1;
-                    let currentPercentage = sortedPlayerData.length > 0 ? sortedPlayerData[0].percentage : 0;
-                    let currentAchieved = sortedPlayerData.length > 0 ? (sortedPlayerData[0].achieved || sortedPlayerData[0].achievements || 0) : 0;
-                    let rankCounter = 0;
-
-                    // Assign ranks to each player
-                    sortedPlayerData.forEach((player, index) => {
-                        const playerPercentage = player.percentage || 0;
-                        const playerAchieved = player.achieved || player.achievements || 0;
-                        
-                        // If this player has lower stats than the previous one, update the rank
-                        if (playerPercentage < currentPercentage || 
-                            (playerPercentage === currentPercentage && playerAchieved < currentAchieved)) {
-                            currentRank = index + 1;
-                            currentPercentage = playerPercentage;
-                            currentAchieved = playerAchieved;
-                        }
-                        
-                        // Store the calculated rank
-                        player.displayRank = currentRank;
-                        rankCounter++;
-                    });
-
                     rankingsHTML = `
-                        <div class="rankings-title">Rankings 1-${sortedPlayerData.length}</div>
+                        <div class="rankings-title">Rankings 1-${filteredPlayerData.length}</div>
                         <ul class="player-list">
-                            ${sortedPlayerData.map((player) => {
-                                // Use our calculated display rank for proper tie handling
-                                const rank = player.displayRank || 1;
+                            ${filteredPlayerData.map((player) => {
+                                // Use the rank from the API rather than the index
+                                const rank = player.rank || 1;
                                 const isTrophy = rank <= 3;
                                 
-                                // Format completion percentage
+                                // Format completion percentage - use values directly from API
                                 const achieved = player.achieved || player.achievements || 0;
                                 const percentage = player.percentage || 0;
-                                // Ensure we display a proper percentage format
+                                // Ensure we display a proper percentage format matching Discord bot
                                 const formattedPercentage = (Math.round(percentage * 100) / 100).toFixed(2);
                                 const completion = `${achieved}/${totalAchievements} (${formattedPercentage}%)`;
                                 
@@ -488,7 +442,7 @@
                         </ul>
                     `;
                 } else {
-                    // Yearly leaderboard display - apply same ranking fix as monthly
+                    // Yearly leaderboard display
                     headerHTML = `
                         <div class="leaderboard-header">
                             <div class="header-content">
@@ -500,43 +454,12 @@
                         </div>
                     `;
 
-                    // Sort by points and handle ties
-                    const sortedYearlyData = [...data.leaderboard].sort((a, b) => {
-                        // Sort by yearly points descending
-                        const aPoints = a.yearlyPoints || 0;
-                        const bPoints = b.yearlyPoints || 0;
-                        
-                        if (bPoints !== aPoints) {
-                            return bPoints - aPoints;
-                        }
-                        
-                        // If points are equal, sort alphabetically
-                        return a.username.localeCompare(b.username);
-                    });
-
-                    // Calculate proper ranks with tie handling
-                    let currentYearlyRank = 1;
-                    let currentPoints = sortedYearlyData.length > 0 ? sortedYearlyData[0].yearlyPoints : 0;
-
-                    sortedYearlyData.forEach((player, index) => {
-                        const playerPoints = player.yearlyPoints || 0;
-                        
-                        // If this player has lower points than the previous one, update the rank
-                        if (playerPoints < currentPoints) {
-                            currentYearlyRank = index + 1;
-                            currentPoints = playerPoints;
-                        }
-                        
-                        // Store the calculated rank
-                        player.displayRank = currentYearlyRank;
-                    });
-
                     rankingsHTML = `
-                        <div class="rankings-title">Rankings 1-${sortedYearlyData.length}</div>
+                        <div class="rankings-title">Rankings 1-${data.leaderboard.length}</div>
                         <ul class="player-list">
-                            ${sortedYearlyData.map((player) => {
-                                // Use our calculated display rank
-                                const rank = player.displayRank || 1;
+                            ${data.leaderboard.map((player) => {
+                                // Use the rank from the API rather than the index
+                                const rank = player.rank || 1;
                                 const isTrophy = rank <= 3;
                                 
                                 // Determine award emoji based on ranking
