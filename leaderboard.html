@@ -15,16 +15,18 @@
         .leaderboard-container {
             max-width: 100%;
             margin: 0 auto;
-            background-color: #1e1e1e;
+            background-color: #1a1533;
             border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
             color: #ffffff;
             overflow: hidden;
-            border-left: 4px solid #FFD700;
+            border-left: 4px solid #7b47c9;
         }
         
         .leaderboard-header {
+            background-color: #27224a;
             padding: 15px;
-            border-bottom: 1px solid #383838;
+            border-bottom: 1px solid #3d3175;
             display: flex;
             align-items: flex-start;
         }
@@ -43,7 +45,7 @@
         
         .challenge-title {
             margin: 0;
-            font-size: 1.2rem;
+            font-size: 1.3rem;
             font-weight: bold;
             color: white;
         }
@@ -51,17 +53,18 @@
         .game-info {
             margin-top: 5px;
             font-size: 0.9rem;
+            color: #a367ff;
         }
         
         .challenge-details {
-            margin-top: 10px;
-            font-size: 0.85rem;
+            margin-top: 5px;
+            font-size: 0.9rem;
             color: #bbbbbb;
         }
         
         .time-remaining {
             margin-top: 5px;
-            font-size: 0.85rem;
+            font-size: 0.9rem;
             color: #bbbbbb;
         }
         
@@ -83,18 +86,18 @@
         }
         
         .note {
-            margin-top: 15px;
+            margin-top: 10px;
             font-style: italic;
             font-size: 0.85rem;
             color: #bbbbbb;
-            border-top: 1px solid #383838;
+            border-top: 1px solid #3d3175;
             padding-top: 10px;
         }
         
         .rankings-title {
             margin: 15px 0 10px 15px;
             font-size: 0.9rem;
-            color: #bbbbbb;
+            color: #a367ff;
         }
         
         .player-list {
@@ -105,14 +108,14 @@
         
         .player-item {
             padding: 8px 15px;
-            border-bottom: 1px solid #383838;
+            border-bottom: 1px solid #2d295a;
             display: flex;
             align-items: center;
             position: relative;
         }
         
         .player-item:hover {
-            background-color: #2a2a2a;
+            background-color: #2d295a;
             cursor: pointer;
         }
         
@@ -133,17 +136,13 @@
         }
         
         .trophy {
-            color: gold;
+            color: #FFD700;
             margin-right: 5px;
         }
         
         .username {
             flex-grow: 1;
             font-weight: bold;
-        }
-        
-        .username.highlighted {
-            color: gold;
         }
         
         .completion {
@@ -155,14 +154,14 @@
             position: absolute;
             width: 3px;
             height: 100%;
-            background-color: white;
+            background-color: #a367ff;
             left: 0;
             top: 0;
             display: none;
         }
         
         .player-item.selected {
-            background-color: rgba(255, 255, 255, 0.1);
+            background-color: rgba(163, 103, 255, 0.1);
             position: relative;
         }
         
@@ -173,16 +172,16 @@
         .loading {
             padding: 20px;
             text-align: center;
-            color: #bbbbbb;
+            color: #a367ff;
         }
         
         .loading-spinner {
             display: inline-block;
             width: 20px;
             height: 20px;
-            border: 3px solid rgba(255, 255, 255, 0.2);
+            border: 3px solid rgba(163, 103, 255, 0.3);
             border-radius: 50%;
-            border-top-color: white;
+            border-top-color: #a367ff;
             animation: spin 1s ease-in-out infinite;
             margin-right: 10px;
         }
@@ -200,36 +199,38 @@
         .last-updated {
             padding: 8px 15px;
             font-size: 0.8rem;
-            color: #bbbbbb;
+            color: #7a7a8c;
             text-align: right;
-            border-top: 1px solid #383838;
+            border-top: 1px solid #3d3175;
         }
         
         .tabs {
             display: flex;
-            background-color: #2a2a2a;
+            background-color: #27224a;
         }
         
         .tab {
             padding: 10px 20px;
             cursor: pointer;
             opacity: 0.7;
+            color: #ffffff;
         }
         
         .tab.active {
             opacity: 1;
-            border-bottom: 2px solid #ffffff;
+            border-bottom: 2px solid #a367ff;
         }
         
         /* Debug panel for testing */
         .debug-panel {
             margin-top: 20px;
             padding: 10px;
-            background-color: #333;
-            border: 1px solid #555;
+            background-color: #27224a;
+            border: 1px solid #3d3175;
             font-family: monospace;
             font-size: 12px;
             display: none;
+            color: #a367ff;
         }
         
         .debug-panel.visible {
@@ -253,13 +254,8 @@
             refreshInterval: 300000, // 5 minutes
             // Debug mode - set to true to show API data
             debug: false,
-            // Game details that aren't yet in the API
+            // Achievement types (used if not available from API)
             currentChallenge: {
-                game: "Ape Escape",
-                totalAchievements: 68,
-                endDate: "April 30th, 2025 at 11:59 PM",
-                timeRemaining: "21 days and 14 hours",
-                gameIconUrl: "https://media.retroachievements.org/Images/061127.png",
                 achievements: [
                     { type: "Mastery", points: 3, icon: "✨" },
                     { type: "Beaten", points: 3, icon: "⭐" },
@@ -363,22 +359,17 @@
                 // Get challenge data from API
                 const challenge = data.challenge || {};
                 
-                // Hardcode game details for now to ensure they appear correctly
-                const gameTitle = "Ape Escape";
-                const totalAchievements = 68;
-                const endDate = "April 30th, 2025 at 11:59 PM";
-                const timeRemaining = "21 days and 14 hours";
-                const gameIconUrl = "https://media.retroachievements.org/Images/061127.png";
+                // Use data from API instead of hardcoded values
+                const gameTitle = challenge.gameTitle || "Ape Escape";
+                const totalAchievements = challenge.totalAchievements || 68;
+                const endDate = challenge.endDate || "April 30th, 2025 at 11:59 PM";
+                const timeRemaining = challenge.timeRemaining || "21 days and 14 hours";
+                const gameIconUrl = challenge.gameIconUrl || "https://media.retroachievements.org/Images/061127.png";
                 
-                // Filter out users with 0% progress (already done in API but double check)
-                const filteredPlayerData = data.leaderboard.filter(player => 
-                    player.totalPoints > 0 || player.monthlyPoints > 0 || player.percentage > 0
-                );
+                // The leaderboard should already be filtered and sorted from the API
+                const filteredPlayerData = data.leaderboard || [];
                 
-                // Sort by points (should already be sorted from API, but ensure it)
-                filteredPlayerData.sort((a, b) => b.totalPoints - a.totalPoints);
-
-                // Show tabs if we want to toggle between monthly and yearly
+                // Show tabs for monthly/yearly toggle
                 let tabsHTML = `
                     <div class="tabs">
                         <div class="tab ${this.currentTab === 'monthly' ? 'active' : ''}" data-tab="monthly">Monthly</div>
@@ -394,7 +385,7 @@
                         <div class="leaderboard-header">
                             <img src="${gameIconUrl}" alt="${gameTitle}" class="game-icon" />
                             <div class="header-content">
-                                <h2 class="challenge-title">April 2025 Challenge Leaderboard</h2>
+                                <h2 class="challenge-title">${challenge.monthYear || 'April 2025'} Challenge Leaderboard</h2>
                                 <div class="game-info">Game: ${gameTitle}</div>
                                 <div class="challenge-details">Total Achievements: ${totalAchievements}</div>
                                 <div class="challenge-details">Challenge Ends: ${endDate}</div>
@@ -410,7 +401,7 @@
                                 </div>
                                 
                                 <div class="note">
-                                    Note: Only achievements earned during April count toward challenge status.
+                                    Note: Only achievements earned during ${challenge.monthYear ? challenge.monthYear.split(' ')[0] : 'April'} count toward challenge status.
                                 </div>
                             </div>
                         </div>
@@ -419,12 +410,12 @@
                     rankingsHTML = `
                         <div class="rankings-title">Rankings 1-${filteredPlayerData.length}</div>
                         <ul class="player-list">
-                            ${filteredPlayerData.map((player, index) => {
-                                const rank = index + 1;
-                                const hasRank = true; // Always show rank
+                            ${filteredPlayerData.map((player) => {
+                                // Use the rank from the API rather than the index
+                                const rank = player.rank || 1;
                                 const isTrophy = rank <= 3;
                                 
-                                // Format completion percentage
+                                // Format completion percentage - use values directly from API
                                 const achieved = player.achieved || player.achievements || 0;
                                 const percentage = player.percentage || 0;
                                 // Ensure we display a proper percentage format matching Discord bot
@@ -441,7 +432,7 @@
                                     <li class="player-item" data-username="${player.username}">
                                         <a href="https://retroachievements.org/user/${player.username}" class="player-link" target="_blank"></a>
                                         <div class="player-selection-indicator"></div>
-                                        ${hasRank ? `<span class="rank">#${rank}</span>` : ''}
+                                        <span class="rank">#${rank}</span>
                                         ${awardEmoji}
                                         <span class="username">${player.username}</span>
                                         <span class="completion">${completion}</span>
@@ -466,9 +457,9 @@
                     rankingsHTML = `
                         <div class="rankings-title">Rankings 1-${data.leaderboard.length}</div>
                         <ul class="player-list">
-                            ${data.leaderboard.map((player, index) => {
-                                const rank = index + 1;
-                                const hasRank = true; // Always show rank
+                            ${data.leaderboard.map((player) => {
+                                // Use the rank from the API rather than the index
+                                const rank = player.rank || 1;
                                 const isTrophy = rank <= 3;
                                 
                                 // Determine award emoji based on ranking
@@ -481,7 +472,7 @@
                                     <li class="player-item" data-username="${player.username}">
                                         <a href="https://retroachievements.org/user/${player.username}" class="player-link" target="_blank"></a>
                                         <div class="player-selection-indicator"></div>
-                                        ${hasRank ? `<span class="rank">#${rank}</span>` : ''}
+                                        <span class="rank">#${rank}</span>
                                         ${awardEmoji}
                                         <span class="username">${player.username}</span>
                                         <span class="completion">${player.yearlyPoints} points</span>
