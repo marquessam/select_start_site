@@ -221,6 +221,30 @@
             border-bottom: 2px solid #a367ff;
         }
         
+        .refresh-button {
+            background-color: #7b47c9;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            padding: 5px 10px;
+            margin-left: 10px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+            transition: background-color 0.2s;
+        }
+        
+        .refresh-button:hover {
+            background-color: #9b67e9;
+        }
+        
+        .refresh-icon {
+            display: inline-block;
+            margin-right: 5px;
+            font-size: 0.8rem;
+        }
+        
         /* Debug panel for testing */
         .debug-panel {
             margin-top: 20px;
@@ -314,11 +338,22 @@
             async fetchData() {
                 try {
                     console.log(`Fetching ${this.currentTab} leaderboard data...`);
-                    const response = await fetch(`${this.config.apiUrl}/leaderboard/${this.currentTab}?refresh=true`, {
+                    
+                    // Always append timestamp to API requests to prevent caching
+                    const timestamp = new Date().getTime();
+                    const url = `${this.config.apiUrl}/leaderboard/${this.currentTab}?refresh=true&t=${timestamp}`;
+                    
+                    console.log(`Making request to: ${url}`);
+                    
+                    const response = await fetch(url, {
                         method: 'GET',
                         headers: {
-                            'x-api-key': this.config.apiKey
-                        }
+                            'x-api-key': this.config.apiKey,
+                            'Cache-Control': 'no-cache, no-store, must-revalidate',
+                            'Pragma': 'no-cache',
+                            'Expires': '0'
+                        },
+                        cache: 'no-store' // Tell browser not to cache
                     });
 
                     if (!response.ok) {
@@ -385,7 +420,12 @@
                         <div class="leaderboard-header">
                             <img src="${gameIconUrl}" alt="${gameTitle}" class="game-icon" />
                             <div class="header-content">
-                                <h2 class="challenge-title">${challenge.monthYear || 'April 2025'} Challenge Leaderboard</h2>
+                                <div style="display: flex; align-items: center;">
+                                    <h2 class="challenge-title">${challenge.monthYear || 'April 2025'} Challenge Leaderboard</h2>
+                                    <button id="refresh-button" class="refresh-button">
+                                        <span class="refresh-icon">↻</span> Refresh
+                                    </button>
+                                </div>
                                 <div class="game-info">Game: ${gameTitle}</div>
                                 <div class="challenge-details">Total Achievements: ${totalAchievements}</div>
                                 <div class="challenge-details">Challenge Ends: ${endDate}</div>
@@ -492,7 +532,12 @@
                     headerHTML = `
                         <div class="leaderboard-header">
                             <div class="header-content">
-                                <h2 class="challenge-title">${data.year || new Date().getFullYear()} Yearly Leaderboard</h2>
+                                <div style="display: flex; align-items: center;">
+                                    <h2 class="challenge-title">${data.year || new Date().getFullYear()} Yearly Leaderboard</h2>
+                                    <button id="refresh-button" class="refresh-button">
+                                        <span class="refresh-icon">↻</span> Refresh
+                                    </button>
+                                </div>
                                 <div class="note">
                                     Total points earned across all challenges this year.
                                 </div>
@@ -602,6 +647,30 @@
                         }
                     });
                 });
+                
+                // Add refresh button handler
+                const refreshButton = this.container.querySelector('#refresh-button');
+                if (refreshButton) {
+                    refreshButton.addEventListener('click', async () => {
+                        // Change button text to show it's refreshing
+                        refreshButton.innerHTML = '<span class="refresh-icon">↻</span> Refreshing...';
+                        refreshButton.disabled = true;
+                        
+                        try {
+                            // Force a cache clear and get fresh data
+                            await this.fetchData();
+                            this.renderLeaderboard();
+                            console.log('Data refreshed manually');
+                        } catch (error) {
+                            console.error('Error refreshing data:', error);
+                            this.renderError(error);
+                        } finally {
+                            // Reset button state
+                            refreshButton.innerHTML = '<span class="refresh-icon">↻</span> Refresh';
+                            refreshButton.disabled = false;
+                        }
+                    });
+                }
             }
 
             startAutoRefresh() {
