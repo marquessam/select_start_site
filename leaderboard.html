@@ -342,6 +342,44 @@
                     const data = await response.json();
                     console.log(`${this.currentTab} data received:`, data);
                     
+                    // If we're on the monthly tab, sort the leaderboard by percentage
+                    if (this.currentTab === 'monthly' && data.leaderboard && Array.isArray(data.leaderboard)) {
+                        data.leaderboard.sort((a, b) => {
+                            // First compare by percentage in descending order
+                            const percentA = a.percentage || 0;
+                            const percentB = b.percentage || 0;
+                            
+                            if (percentB !== percentA) {
+                                return percentB - percentA;
+                            }
+                            
+                            // If percentages are equal, sort by achievements in descending order
+                            const achievementsA = a.achievements || a.achieved || 0;
+                            const achievementsB = b.achievements || b.achieved || 0;
+                            
+                            return achievementsB - achievementsA;
+                        });
+                        
+                        // Recalculate ranks after sorting
+                        let currentRank = 1;
+                        let previousPercentage = -1;
+                        let previousAchievements = -1;
+                        
+                        data.leaderboard.forEach((player, index) => {
+                            const currentPercentage = player.percentage || 0;
+                            const currentAchievements = player.achievements || player.achieved || 0;
+                            
+                            // Only increment rank if percentage and achievements differ from previous player
+                            if (index === 0 || currentPercentage !== previousPercentage || currentAchievements !== previousAchievements) {
+                                currentRank = index + 1;
+                            }
+                            
+                            player.rank = currentRank;
+                            previousPercentage = currentPercentage;
+                            previousAchievements = currentAchievements;
+                        });
+                    }
+                    
                     // Show raw data in debug panel
                     if (this.config.debug) {
                         this.debugPanel.innerHTML = JSON.stringify(data, null, 2);
@@ -393,10 +431,12 @@
 
                     headerHTML = `
                         <div class="leaderboard-header">
-                            <img src="${challenge.gameIconUrl || ''}" alt="${challenge.gameTitle || 'Game'}" class="game-icon" onerror="this.src='https://media.retroachievements.org/Images/000001.png';" />
+                            <a href="https://retroachievements.org/game/11283" target="_blank" rel="noopener">
+                                <img src="${challenge.gameIconUrl || ''}" alt="${challenge.gameTitle || 'Game'}" class="game-icon" onerror="this.src='https://media.retroachievements.org/Images/000001.png';" />
+                            </a>
                             <div class="header-content">
                                 <h2 class="challenge-title">${challenge.monthYear || 'Current'} Challenge Leaderboard</h2>
-                                <div class="game-info">Game: ${challenge.gameTitle || ''} (${challenge.consoleName || 'Console'})</div>
+                                <div class="game-info">Game: <a href="https://retroachievements.org/game/11283" target="_blank" rel="noopener" style="color: #a367ff; text-decoration: none;">${challenge.gameTitle || ''}</a> (${challenge.consoleName || 'Console'})</div>
                                 <div class="challenge-details">Total Achievements: ${challenge.totalAchievements || 0}</div>
                                 <div class="challenge-details">Challenge Ends: ${challenge.endDate || ''}</div>
                                 <div class="time-remaining">Time Remaining: ${challenge.timeRemaining || ''}</div>
@@ -530,7 +570,7 @@
                                             <span class="rank">#${displayRank}</span>
                                             ${trophyHTML}
                                             <span class="username">${player.username}</span>
-                                            <span class="completion">${player.yearlyPoints || 0} points</span>
+                                            <span class="completion">${player.yearlyPoints || 0} pts</span>
                                         </li>
                                     `;
                                 }).join('')}
