@@ -335,7 +335,7 @@
             apiUrl: 'https://select-start-api-production.up.railway.app/api',
             apiKey: '123456789',
             refreshInterval: 300000, // 5 minutes
-            // Debug mode - set to false in production, true for troubleshooting
+            // Debug mode - set to true to see the raw API response
             debug: false,
             // Achievement types for display
             achievementTypes: [
@@ -422,6 +422,24 @@
                     
                     // Process and clean up the data
                     if (this.currentTab === 'monthly' && data.leaderboard && Array.isArray(data.leaderboard)) {
+                        // Process data for display
+                        data.leaderboard = data.leaderboard.map(player => {
+                            // Ensure percentage is a number
+                            if (typeof player.percentage === 'string') {
+                                player.percentage = parseFloat(player.percentage);
+                            }
+                            
+                            // Ensure achievements is a number
+                            if (player.achievements && typeof player.achievements === 'string') {
+                                player.achievements = parseInt(player.achievements, 10);
+                            }
+                            if (player.achieved && typeof player.achieved === 'string') {
+                                player.achieved = parseInt(player.achieved, 10);
+                            }
+                            
+                            return player;
+                        });
+                        
                         // Sort by percentage
                         data.leaderboard.sort((a, b) => {
                             // First compare by percentage in descending order
@@ -553,7 +571,7 @@
                                     const trophyHTML = isTrophy ? '<span class="trophy">🏆</span>' : '';
                                     
                                     // Get achievement counts directly from API
-                                    const achievements = player.achievements || player.achieved || 0;
+                                                                                const achievements = player.achievements || player.achieved || 0;
                                     
                                     // Get the percentage directly from API or calculate it
                                     let percentage = player.percentage;
