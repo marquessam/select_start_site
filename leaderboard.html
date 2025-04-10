@@ -150,6 +150,13 @@
             text-align: right;
         }
         
+        .points {
+            color: #a367ff;
+            margin-right: 10px;
+            text-align: right;
+            min-width: 50px;
+        }
+        
         .player-selection-indicator {
             position: absolute;
             width: 3px;
@@ -231,6 +238,9 @@
             font-size: 12px;
             display: none;
             color: #a367ff;
+            white-space: pre-wrap;
+            max-height: 300px;
+            overflow: auto;
         }
         
         .debug-panel.visible {
@@ -252,16 +262,14 @@
             apiUrl: 'https://select-start-api-production.up.railway.app/api',
             apiKey: '123456789',
             refreshInterval: 300000, // 5 minutes
-            // Debug mode - set to true to show API data
+            // Debug mode - set to true to see the raw API response
             debug: false,
-            // Achievement types (used if not available from API)
-            currentChallenge: {
-                achievements: [
-                    { type: "Mastery", points: 3, icon: "✨" },
-                    { type: "Beaten", points: 3, icon: "⭐" },
-                    { type: "Part.", points: 1, icon: "🎮" }
-                ]
-            }
+            // Achievement types for display
+            achievementTypes: [
+                { type: "Mastery", points: 3, icon: "✨" },
+                { type: "Beaten", points: 2, icon: "⭐" },
+                { type: "Part.", points: 1, icon: "🎮" }
+            ]
         };
 
         class DiscordLeaderboard {
@@ -309,12 +317,16 @@
                         <p>${error.message || 'Please try again later.'}</p>
                     </div>
                 `;
+                
+                if (this.config.debug) {
+                    this.debugPanel.innerHTML = `ERROR: ${error.stack || error.message || 'Unknown error'}`;
+                }
             }
 
             async fetchData() {
                 try {
                     console.log(`Fetching ${this.currentTab} leaderboard data...`);
-                    const response = await fetch(`${this.config.apiUrl}/leaderboard/${this.currentTab}?refresh=true`, {
+                    const response = await fetch(`${this.config.apiUrl}/leaderboard/${this.currentTab}`, {
                         method: 'GET',
                         headers: {
                             'x-api-key': this.config.apiKey
@@ -328,11 +340,11 @@
                     }
 
                     const data = await response.json();
-                    console.log("Received data:", data);
+                    console.log(`${this.currentTab} data received:`, data);
                     
-                    // Show data in debug panel
+                    // Show raw data in debug panel
                     if (this.config.debug) {
-                        this.debugPanel.innerHTML = `<pre>${JSON.stringify(data, null, 2)}</pre>`;
+                        this.debugPanel.innerHTML = JSON.stringify(data, null, 2);
                     }
                     
                     this.leaderboardData = data;
@@ -345,30 +357,22 @@
 
             formatDate(dateString) {
                 if (!dateString) return 'N/A';
-                const date = new Date(dateString);
-                return date.toLocaleString();
+                try {
+                    const date = new Date(dateString);
+                    return date.toLocaleString();
+                } catch (e) {
+                    console.error('Date formatting error:', e);
+                    return dateString;
+                }
             }
 
             renderLeaderboard() {
                 const data = this.leaderboardData;
                 if (!data || !data.leaderboard) {
-                    this.renderError(new Error('No data available'));
+                    this.renderError(new Error('No leaderboard data available'));
                     return;
                 }
 
-                // Get challenge data from API
-                const challenge = data.challenge || {};
-                
-                // Use data from API instead of hardcoded values
-                const gameTitle = challenge.gameTitle || "Ape Escape";
-                const totalAchievements = challenge.totalAchievements || 68;
-                const endDate = challenge.endDate || "April 30th, 2025 at 11:59 PM";
-                const timeRemaining = challenge.timeRemaining || "21 days and 14 hours";
-                const gameIconUrl = challenge.gameIconUrl || "https://media.retroachievements.org/Images/061127.png";
-                
-                // The leaderboard should already be filtered and sorted from the API
-                const filteredPlayerData = data.leaderboard || [];
-                
                 // Show tabs for monthly/yearly toggle
                 let tabsHTML = `
                     <div class="tabs">
@@ -377,22 +381,28 @@
                     </div>
                 `;
 
-                let headerHTML = ``;
-                let rankingsHTML = ``;
+                let headerHTML = '';
+                let rankingsHTML = '';
 
                 if (this.currentTab === 'monthly') {
+                    // Get challenge data from API
+                    const challenge = data.challenge || {};
+                    
+                    // Get player data, which should already be sorted by the API
+                    const players = data.leaderboard || [];
+
                     headerHTML = `
                         <div class="leaderboard-header">
-                            <img src="${gameIconUrl}" alt="${gameTitle}" class="game-icon" />
+                            <img src="${challenge.gameIconUrl || ''}" alt="${challenge.gameTitle || 'Game'}" class="game-icon" onerror="this.src='https://media.retroachievements.org/Images/000001.png';" />
                             <div class="header-content">
-                                <h2 class="challenge-title">${challenge.monthYear || 'April 2025'} Challenge Leaderboard</h2>
-                                <div class="game-info">Game: ${gameTitle}</div>
-                                <div class="challenge-details">Total Achievements: ${totalAchievements}</div>
-                                <div class="challenge-details">Challenge Ends: ${endDate}</div>
-                                <div class="time-remaining">Time Remaining: ${timeRemaining}</div>
+                                <h2 class="challenge-title">${challenge.monthYear || 'Current'} Challenge Leaderboard</h2>
+                                <div class="game-info">Game: ${challenge.gameTitle || ''} (${challenge.consoleName || 'Console'})</div>
+                                <div class="challenge-details">Total Achievements: ${challenge.totalAchievements || 0}</div>
+                                <div class="challenge-details">Challenge Ends: ${challenge.endDate || ''}</div>
+                                <div class="time-remaining">Time Remaining: ${challenge.timeRemaining || ''}</div>
                                 
                                 <div class="achievement-types">
-                                    ${this.config.currentChallenge.achievements.map(ach => 
+                                    ${this.config.achievementTypes.map(ach => 
                                         `<div class="achievement-type">
                                             <span class="achievement-icon">${ach.icon}</span>
                                             ${ach.type} (${ach.points}pts)
@@ -401,96 +411,153 @@
                                 </div>
                                 
                                 <div class="note">
-                                    Note: Only achievements earned during ${challenge.monthYear ? challenge.monthYear.split(' ')[0] : 'April'} count toward challenge status.
+                                    Note: Only achievements earned during ${challenge.monthYear ? challenge.monthYear.split(' ')[0] : 'this month'} count toward challenge status.
                                 </div>
                             </div>
                         </div>
                     `;
+                    
+                    // Generate rankings HTML - don't reprocess ranks, use them directly from API
+                    if (players.length > 0) {
+                        // Ensure we have the total number of achievements for percentage calculation
+                        const totalAchievements = challenge.totalAchievements || (players[0].totalAchievements || 1);
+                        
+                        rankingsHTML = `
+                            <div class="rankings-title">Rankings (${players.length} participants)</div>
+                            <ul class="player-list">
+                                ${players.map((player, index) => {
+                                    // Use index+1 as fallback rank if API doesn't provide one
+                                    let displayRank = index + 1;
+                                    
+                                    // If the API gives us ranks, use those instead
+                                    if (player.hasOwnProperty('rank')) {
+                                        displayRank = player.rank;
+                                    }
+                                    
+                                    // Check if this player should get a trophy (top 3)
+                                    const isTrophy = displayRank <= 3;
+                                    const trophyHTML = isTrophy ? '<span class="trophy">🏆</span>' : '';
+                                    
+                                    // Get achievement counts directly from API
+                                    const achievements = player.achievements || player.achieved || 0;
+                                    
+                                    // Get the percentage directly from API or calculate it
+                                    let percentage = player.percentage;
+                                    if (percentage === undefined && totalAchievements > 0) {
+                                        percentage = (achievements / totalAchievements) * 100;
+                                    }
+                                    
+                                    // Make sure percentage is properly formatted
+                                    const formattedPercentage = percentage !== undefined
+                                        ? (Math.round(percentage * 100) / 100).toFixed(2)
+                                        : '0.00';
+                                    
+                                    // Total points for display
+                                    const totalPoints = player.totalPoints || player.monthlyPoints || 0;
+                                    
+                                    return `
+                                        <li class="player-item" data-username="${player.username}">
+                                            <a href="https://retroachievements.org/user/${player.username}" class="player-link" target="_blank" rel="noopener"></a>
+                                            <div class="player-selection-indicator"></div>
+                                            <span class="rank">#${displayRank}</span>
+                                            ${trophyHTML}
+                                            <span class="username">${player.username}</span>
+                                            <span class="points">${totalPoints}pts</span>
+                                            <span class="completion">${achievements}/${totalAchievements} (${formattedPercentage}%)</span>
+                                        </li>
+                                    `;
+                                }).join('')}
+                            </ul>
+                        `;
+                    } else {
+                        rankingsHTML = `
+                            <div style="padding: 20px; text-align: center;">
+                                <p>No participants found for the current challenge.</p>
+                            </div>
+                        `;
+                    }
 
-                    rankingsHTML = `
-                        <div class="rankings-title">Rankings 1-${filteredPlayerData.length}</div>
-                        <ul class="player-list">
-                            ${filteredPlayerData.map((player) => {
-                                // Use the rank from the API rather than the index
-                                const rank = player.rank || 1;
-                                const isTrophy = rank <= 3;
-                                
-                                // Format completion percentage - use values directly from API
-                                const achieved = player.achieved || player.achievements || 0;
-                                const percentage = player.percentage || 0;
-                                // Ensure we display a proper percentage format matching Discord bot
-                                const formattedPercentage = (Math.round(percentage * 100) / 100).toFixed(2);
-                                const completion = `${achieved}/${totalAchievements} (${formattedPercentage}%)`;
-                                
-                                // Determine award emoji based on ranking
-                                let awardEmoji = '';
-                                if (isTrophy) {
-                                    awardEmoji = '<span class="trophy">🏆</span>';
-                                }
-                                
-                                return `
-                                    <li class="player-item" data-username="${player.username}">
-                                        <a href="https://retroachievements.org/user/${player.username}" class="player-link" target="_blank"></a>
-                                        <div class="player-selection-indicator"></div>
-                                        <span class="rank">#${rank}</span>
-                                        ${awardEmoji}
-                                        <span class="username">${player.username}</span>
-                                        <span class="completion">${completion}</span>
-                                    </li>
-                                `;
-                            }).join('')}
-                        </ul>
-                    `;
                 } else {
-                    // Yearly leaderboard display
+                    // YEARLY LEADERBOARD
+                    // Get player data, which should already be sorted by the API
+                    const players = data.leaderboard || [];
+                    const year = data.year || new Date().getFullYear();
+                    const pointSystem = data.pointSystem || {
+                        mastery: 7,
+                        beaten: 4,
+                        participation: 1,
+                        shadowBeaten: 4,
+                        shadowParticipation: 1
+                    };
+                    
                     headerHTML = `
                         <div class="leaderboard-header">
                             <div class="header-content">
-                                <h2 class="challenge-title">${data.year || new Date().getFullYear()} Yearly Leaderboard</h2>
+                                <h2 class="challenge-title">${year} Yearly Leaderboard</h2>
+                                <div class="game-info">Total Challenges: ${data.challengeCount || 'Unknown'}</div>
                                 <div class="note">
-                                    Total points earned across all challenges this year.
+                                    Points are tallied from all monthly challenges in ${year}.<br>
+                                    <b>Point system:</b> Mastery (${pointSystem.mastery}pts), 
+                                    Beaten (${pointSystem.beaten}pts), 
+                                    Participation (${pointSystem.participation}pt),
+                                    Shadow Beaten (${pointSystem.shadowBeaten}pts),
+                                    Shadow Participation (${pointSystem.shadowParticipation}pt)
                                 </div>
                             </div>
                         </div>
                     `;
-
-                    rankingsHTML = `
-                        <div class="rankings-title">Rankings 1-${data.leaderboard.length}</div>
-                        <ul class="player-list">
-                            ${data.leaderboard.map((player) => {
-                                // Use the rank from the API rather than the index
-                                const rank = player.rank || 1;
-                                const isTrophy = rank <= 3;
-                                
-                                // Determine award emoji based on ranking
-                                let awardEmoji = '';
-                                if (isTrophy) {
-                                    awardEmoji = '<span class="trophy">🏆</span>';
-                                }
-                                
-                                return `
-                                    <li class="player-item" data-username="${player.username}">
-                                        <a href="https://retroachievements.org/user/${player.username}" class="player-link" target="_blank"></a>
-                                        <div class="player-selection-indicator"></div>
-                                        <span class="rank">#${rank}</span>
-                                        ${awardEmoji}
-                                        <span class="username">${player.username}</span>
-                                        <span class="completion">${player.yearlyPoints} points</span>
-                                    </li>
-                                `;
-                            }).join('')}
-                        </ul>
-                    `;
+                    
+                    // Generate rankings HTML
+                    if (players.length > 0) {
+                        rankingsHTML = `
+                            <div class="rankings-title">Rankings (${players.length} participants)</div>
+                            <ul class="player-list">
+                                ${players.map((player) => {
+                                    // Use directly provided rank from API or default to index+1
+                                    const displayRank = player.rank || 1;
+                                    const isTrophy = displayRank <= 3;
+                                    const trophyHTML = isTrophy ? '<span class="trophy">🏆</span>' : '';
+                                    
+                                    // Get stats for display
+                                    const stats = player.stats || {};
+                                    const statsText = stats ? 
+                                        `Mastery: ${stats.mastery || 0}, Beaten: ${stats.beaten || 0}, Part: ${stats.participation || 0}, Shadow: ${(stats.shadowBeaten || 0) + (stats.shadowParticipation || 0)}` : '';
+                                    
+                                    return `
+                                        <li class="player-item" data-username="${player.username}">
+                                            <a href="https://retroachievements.org/user/${player.username}" class="player-link" target="_blank" rel="noopener"></a>
+                                            <div class="player-selection-indicator"></div>
+                                            <span class="rank">#${displayRank}</span>
+                                            ${trophyHTML}
+                                            <span class="username">${player.username}</span>
+                                            <span class="completion">${player.yearlyPoints || 0} points</span>
+                                        </li>
+                                    `;
+                                }).join('')}
+                            </ul>
+                        `;
+                    } else {
+                        rankingsHTML = `
+                            <div style="padding: 20px; text-align: center;">
+                                <p>No participants found for the ${year} yearly challenge.</p>
+                            </div>
+                        `;
+                    }
                 }
 
                 let lastUpdatedHTML = `
                     <div class="last-updated">
-                        Updated: ${this.formatDate(data.lastUpdated)}
+                        Updated: ${this.formatDate(data.lastUpdated || new Date().toISOString())}
                     </div>
                 `;
                 
                 this.container.innerHTML = tabsHTML + headerHTML + rankingsHTML + lastUpdatedHTML;
                 
+                // Add event listeners to player items and tabs
+                this.attachEventListeners();
+            }
+
+            attachEventListeners() {
                 // Add click event listener to player items
                 const playerItems = this.container.querySelectorAll('.player-item');
                 playerItems.forEach(item => {
@@ -553,16 +620,16 @@
             }
         }
 
-        // Initialize on page load
-        document.addEventListener('DOMContentLoaded', () => {
+        // Initialize when DOM is ready
+        function initializeLeaderboard() {
             new DiscordLeaderboard('discord-leaderboard', CONFIG);
-        });
+        }
 
-        // Also initialize if DOM is already loaded
-        if (document.readyState === 'complete' || document.readyState === 'interactive') {
-            setTimeout(() => {
-                new DiscordLeaderboard('discord-leaderboard', CONFIG);
-            }, 1);
+        // Check if DOM is already loaded
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initializeLeaderboard);
+        } else {
+            initializeLeaderboard();
         }
     </script>
 </body>
