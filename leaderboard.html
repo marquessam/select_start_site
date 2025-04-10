@@ -337,6 +337,12 @@
             refreshInterval: 300000, // 5 minutes
             // Debug mode - set to true to see the raw API response
             debug: false,
+            // Achievement types for display
+            achievementTypes: [
+                { type: "Mastery", points: 3, icon: "✨" },
+                { type: "Beaten", points: 3, icon: "⭐" },
+                { type: "Part.", points: 1, icon: "🎮" }
+            ]
         };
 
         class DiscordLeaderboard {
@@ -414,8 +420,14 @@
                         this.debugPanel.innerHTML = JSON.stringify(data, null, 2);
                     }
                     
+                    // Ensure the leaderboard property exists
+                    if (!data.leaderboard || !Array.isArray(data.leaderboard)) {
+                        console.warn('API returned no leaderboard data or invalid format');
+                        data.leaderboard = [];
+                    }
+                    
                     // Process and clean up the data
-                    if (this.currentTab === 'monthly' && data.leaderboard && Array.isArray(data.leaderboard)) {
+                    if (this.currentTab === 'monthly' && data.leaderboard.length > 0) {
                         // Process data for display
                         data.leaderboard = data.leaderboard.map(player => {
                             // Ensure percentage is a number
@@ -492,9 +504,15 @@
 
             renderLeaderboard() {
                 const data = this.leaderboardData;
-                if (!data || !data.leaderboard) {
+                if (!data) {
                     this.renderError(new Error('No leaderboard data available'));
                     return;
+                }
+
+                // Ensure leaderboard data exists
+                if (!data.leaderboard) {
+                    console.warn('Missing leaderboard data in API response:', data);
+                    data.leaderboard = [];
                 }
 
                 // Show tabs for monthly/yearly toggle
@@ -513,7 +531,7 @@
                     const challenge = data.challenge || {};
                     
                     // Get player data, which should already be sorted by the API
-                    const players = data.leaderboard || [];
+                    const players = Array.isArray(data.leaderboard) ? data.leaderboard : [];
 
                     headerHTML = `
                         <div class="leaderboard-header">
@@ -602,7 +620,7 @@
                 } else {
                     // YEARLY LEADERBOARD
                     // Get player data, which should already be sorted by the API
-                    const players = data.leaderboard || [];
+                    const players = Array.isArray(data.leaderboard) ? data.leaderboard : [];
                     const year = data.year || new Date().getFullYear();
                     const pointSystem = data.pointSystem || {
                         mastery: 7,
