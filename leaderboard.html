@@ -255,7 +255,7 @@
             apiUrl: 'https://select-start-api-production.up.railway.app/api',
             apiKey: '123456789',
             refreshInterval: 300000, // 5 minutes
-            // Debug mode - set to true to see the raw API response
+            // Debug mode - set to false in production, true for troubleshooting
             debug: false,
             // Achievement types for display
             achievementTypes: [
@@ -265,7 +265,7 @@
             ]
         };
 
-                                                        class DiscordLeaderboard {
+        class DiscordLeaderboard {
             constructor(containerId, config) {
                 this.container = document.getElementById(containerId);
                 this.config = config;
@@ -335,17 +335,13 @@
                     const data = await response.json();
                     console.log(`${this.currentTab} data received:`, data);
                     
-                    // If we're on the monthly tab, sort the leaderboard by percentage
+                    // Show raw data in debug panel
+                    if (this.config.debug) {
+                        this.debugPanel.innerHTML = JSON.stringify(data, null, 2);
+                    }
+                    
+                    // Process and clean up the data
                     if (this.currentTab === 'monthly' && data.leaderboard && Array.isArray(data.leaderboard)) {
-                        // Process the leaderboard data to remove points display
-                        data.leaderboard.forEach(player => {
-                            // Remove any point-related properties that might be displayed
-                            delete player.totalPoints;
-                            delete player.monthlyPoints;
-                            delete player.shadowPoints;
-                            delete player.points;
-                        });
-                        
                         // Sort by percentage
                         data.leaderboard.sort((a, b) => {
                             // First compare by percentage in descending order
@@ -381,11 +377,6 @@
                             previousPercentage = currentPercentage;
                             previousAchievements = currentAchievements;
                         });
-                    }
-                    
-                    // Show raw data in debug panel
-                    if (this.config.debug) {
-                        this.debugPanel.innerHTML = JSON.stringify(data, null, 2);
                     }
                     
                     this.leaderboardData = data;
@@ -484,6 +475,17 @@
                                     // Get achievement counts directly from API
                                     const achievements = player.achievements || player.achieved || 0;
                                     
+                                    // Get the percentage directly from API or calculate it
+                                    let percentage = player.percentage;
+                                    if (percentage === undefined && totalAchievements > 0) {
+                                        percentage = (achievements / totalAchievements) * 100;
+                                    }
+                                    
+                                    // Make sure percentage is properly formatted
+                                    const formattedPercentage = percentage !== undefined
+                                        ? (Math.round(percentage * 100) / 100).toFixed(2)
+                                        : '0.00';
+                                    
                                     return `
                                         <li class="player-item" data-username="${player.username}">
                                             <a href="https://retroachievements.org/user/${player.username}" class="player-link" target="_blank" rel="noopener"></a>
@@ -491,7 +493,6 @@
                                             <span class="rank">#${displayRank}</span>
                                             ${trophyHTML}
                                             <span class="username">${player.username}</span>
-                                            <span class="points">${totalPoints}pts</span>
                                             <span class="completion">${achievements}/${totalAchievements} (${formattedPercentage}%)</span>
                                         </li>
                                     `;
@@ -546,11 +547,6 @@
                                     const displayRank = player.rank || 1;
                                     const isTrophy = displayRank <= 3;
                                     const trophyHTML = isTrophy ? '<span class="trophy">🏆</span>' : '';
-                                    
-                                    // Get stats for display
-                                    const stats = player.stats || {};
-                                    const statsText = stats ? 
-                                        `Mastery: ${stats.mastery || 0}, Beaten: ${stats.beaten || 0}, Part: ${stats.participation || 0}, Shadow: ${(stats.shadowBeaten || 0) + (stats.shadowParticipation || 0)}` : '';
                                     
                                     return `
                                         <li class="player-item" data-username="${player.username}">
