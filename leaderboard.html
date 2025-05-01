@@ -465,12 +465,12 @@
 
                     headerHTML = `
                         <div class="leaderboard-header">
-                            <a href="https://retroachievements.org/game/${challenge.gameId || ''}" target="_blank" rel="noopener">
+                            <a href="https://retroachievements.org/game/${challenge.monthlyGame || ''}" target="_blank" rel="noopener">
                                 <img src="${challenge.gameIconUrl || ''}" alt="${challenge.gameTitle || 'Game'}" class="game-icon" onerror="this.src='https://media.retroachievements.org/Images/000001.png';" />
                             </a>
                             <div class="header-content">
                                 <h2 class="challenge-title">${challenge.monthYear || 'Current'} Challenge Leaderboard</h2>
-                                <div class="game-info">Game: <a href="https://retroachievements.org/game/${challenge.gameId || ''}" target="_blank" rel="noopener" style="color: #a367ff; text-decoration: none;">${challenge.gameTitle || ''}</a> <span class="console-name">(${challenge.consoleName || 'Console'})</span></div>
+                                <div class="game-info">Game: <a href="https://retroachievements.org/game/${challenge.monthlyGame || ''}" target="_blank" rel="noopener" style="color: #a367ff; text-decoration: none;">${challenge.gameTitle || ''}</a> <span class="console-name">(${challenge.consoleName || 'Console'})</span></div>
                                 <div class="challenge-details">Total Achievements: ${challenge.totalAchievements || 0}</div>
                                 <div class="challenge-details">Challenge Ends: ${challenge.endDate || ''}</div>
                                 <div class="time-remaining">Time Remaining: ${challenge.timeRemaining || ''}</div>
